@@ -13,6 +13,7 @@ import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart'
 import 'package:opennutritracker/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:opennutritracker/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:opennutritracker/features/settings/presentation/widgets/export_import_dialog.dart';
+import 'package:opennutritracker/features/chat/presentation/widgets/chat_settings_dialog.dart';
 import 'package:opennutritracker/generated/l10n.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -102,6 +103,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: const Icon(Icons.error_outline_outlined),
                   title: Text(S.of(context).settingAboutLabel),
                   onTap: () => _showAboutDialog(context),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_outline_outlined),
+                  title: Text(S.of(context).settingsChatLabel),
+                  onTap: () => _showChatSettingsDialog(context),
                 ),
                 const SizedBox(height: 32.0),
                 AppBannerVersion(versionNumber: state.versionNumber)
@@ -383,6 +389,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ))
           ]);
     }
+  }
+
+  void _showChatSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => ChatSettingsDialog(),
+    );
   }
 
   void _launchSourceCodeUrl(BuildContext context) async {

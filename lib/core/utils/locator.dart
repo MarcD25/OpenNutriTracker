@@ -44,6 +44,10 @@ import 'package:opennutritracker/features/add_meal/presentation/bloc/add_meal_bl
 import 'package:opennutritracker/features/add_meal/presentation/bloc/food_bloc.dart';
 import 'package:opennutritracker/features/add_meal/presentation/bloc/products_bloc.dart';
 import 'package:opennutritracker/features/add_meal/presentation/bloc/recent_meal_bloc.dart';
+import 'package:opennutritracker/features/chat/data/data_source/chat_data_source.dart';
+import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart';
+import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usecase.dart';
+import 'package:opennutritracker/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/calendar_day_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/diary_bloc.dart';
 import 'package:opennutritracker/features/edit_meal/presentation/bloc/edit_meal_bloc.dart';
@@ -114,6 +118,7 @@ Future<void> initLocator() async {
       .registerFactory<ProductsBloc>(() => ProductsBloc(locator(), locator()));
   locator.registerFactory<FoodBloc>(() => FoodBloc(locator(), locator()));
   locator.registerFactory(() => RecentMealBloc(locator(), locator()));
+  locator.registerFactory<ChatBloc>(() => ChatBloc(locator()));
 
   // UseCases
   locator.registerLazySingleton<GetConfigUsecase>(
@@ -155,6 +160,9 @@ Future<void> initLocator() async {
       () => ExportDataUsecase(locator(), locator(), locator()));
   locator.registerLazySingleton(
       () => ImportDataUsecase(locator(), locator(), locator()));
+  locator.registerLazySingleton<ChatUsecase>(() => ChatUsecase(locator(), locator(), locator()));
+  locator.registerLazySingleton<AIFoodEntryUsecase>(() => AIFoodEntryUsecase(
+    locator(), locator(), locator(), locator()));
 
   // Repositories
   locator.registerLazySingleton(() => ConfigRepository(locator()));
@@ -170,6 +178,7 @@ Future<void> initLocator() async {
       () => PhysicalActivityRepository(locator()));
   locator.registerLazySingleton<TrackedDayRepository>(
       () => TrackedDayRepository(locator()));
+  locator.registerLazySingleton<ChatDataSource>(() => ChatDataSource());
 
   // DataSources
   locator

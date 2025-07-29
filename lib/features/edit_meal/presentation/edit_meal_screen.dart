@@ -49,19 +49,12 @@ class _EditMealScreenState extends State<EditMealScreen> {
   late List<ButtonSegment<String>> _mealUnitButtonSegment;
 
   // TODO: Add base quantity and unit
-  String baseQuantity = "100";
   String baseQuantityUnit = " g/ml";
 
   @override
   void initState() {
     _editMealBloc = locator<EditMealBloc>();
     super.initState();
-
-    _baseQuantityTextController.addListener(() {
-      setState(() {
-        baseQuantity = _baseQuantityTextController.text;
-      });
-    });
   }
 
   @override
@@ -223,7 +216,7 @@ class _EditMealScreenState extends State<EditMealScreen> {
           decoration: InputDecoration(
               labelText: S.of(context).baseQuantityLabel,
               border: const OutlineInputBorder()),
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
         const SizedBox(height: 48),
         TextFormField(
@@ -231,7 +224,7 @@ class _EditMealScreenState extends State<EditMealScreen> {
           inputFormatters: CustomTextInputFormatter.doubleOnly(),
           decoration: InputDecoration(
               labelText:
-                  S.of(context).mealKcalLabel + baseQuantity + baseQuantityUnit,
+                  S.of(context).mealKcalLabel + _baseQuantityTextController.text + baseQuantityUnit,
               border: const OutlineInputBorder()),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
@@ -241,7 +234,7 @@ class _EditMealScreenState extends State<EditMealScreen> {
           inputFormatters: CustomTextInputFormatter.doubleOnly(),
           decoration: InputDecoration(
               labelText: S.of(context).mealCarbsLabel +
-                  baseQuantity +
+                  _baseQuantityTextController.text +
                   baseQuantityUnit,
               border: const OutlineInputBorder()),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -252,7 +245,7 @@ class _EditMealScreenState extends State<EditMealScreen> {
           inputFormatters: CustomTextInputFormatter.doubleOnly(),
           decoration: InputDecoration(
               labelText:
-                  S.of(context).mealFatLabel + baseQuantity + baseQuantityUnit,
+                  S.of(context).mealFatLabel + _baseQuantityTextController.text + baseQuantityUnit,
               border: const OutlineInputBorder()),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
         ),
@@ -262,7 +255,7 @@ class _EditMealScreenState extends State<EditMealScreen> {
           inputFormatters: CustomTextInputFormatter.doubleOnly(),
           decoration: InputDecoration(
               labelText: S.of(context).mealProteinLabel +
-                  baseQuantity +
+                  _baseQuantityTextController.text +
                   baseQuantityUnit,
               border: const OutlineInputBorder()),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),

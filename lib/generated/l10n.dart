@@ -4150,6 +4150,646 @@ class S {
       args: [],
     );
   }
+
+  /// `Chat`
+  String get chatLabel {
+    return Intl.message(
+      'Chat',
+      name: 'chatLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nutrition Assistant`
+  String get chatTitle {
+    return Intl.message(
+      'Nutrition Assistant',
+      name: 'chatTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Ask me anything about nutrition, calories, and your food tracking`
+  String get chatSubtitle {
+    return Intl.message(
+      'Ask me anything about nutrition, calories, and your food tracking',
+      name: 'chatSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Type your message here...`
+  String get chatPlaceholder {
+    return Intl.message(
+      'Type your message here...',
+      name: 'chatPlaceholder',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Send`
+  String get chatSendButton {
+    return Intl.message(
+      'Send',
+      name: 'chatSendButton',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `OpenRouter API Key`
+  String get chatApiKeyTitle {
+    return Intl.message(
+      'OpenRouter API Key',
+      name: 'chatApiKeyTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter your OpenRouter API key to start chatting`
+  String get chatApiKeySubtitle {
+    return Intl.message(
+      'Enter your OpenRouter API key to start chatting',
+      name: 'chatApiKeySubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `sk-or-v1-...`
+  String get chatApiKeyHint {
+    return Intl.message(
+      'sk-or-v1-...',
+      name: 'chatApiKeyHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Save Key`
+  String get chatApiKeySave {
+    return Intl.message(
+      'Save Key',
+      name: 'chatApiKeySave',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Please enter a valid API key`
+  String get chatApiKeyError {
+    return Intl.message(
+      'Please enter a valid API key',
+      name: 'chatApiKeyError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API key saved successfully`
+  String get chatApiKeySuccess {
+    return Intl.message(
+      'API key saved successfully',
+      name: 'chatApiKeySuccess',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Thinking...`
+  String get chatLoading {
+    return Intl.message(
+      'Thinking...',
+      name: 'chatLoading',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sorry, I encountered an error. Please try again.`
+  String get chatError {
+    return Intl.message(
+      'Sorry, I encountered an error. Please try again.',
+      name: 'chatError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Please enter your OpenRouter API key to start chatting`
+  String get chatNoApiKey {
+    return Intl.message(
+      'Please enter your OpenRouter API key to start chatting',
+      name: 'chatNoApiKey',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Hi! I'm your nutrition assistant. I can help you with:\n\n• Tracking your food intake\n• Calculating calories and macros\n• Viewing your history\n• Adding, editing, and deleting food entries\n• Providing nutrition advice\n\nPlease enter your OpenRouter API key to get started.`
+  String get chatWelcome {
+    return Intl.message(
+      'Hi! I\'m your nutrition assistant. I can help you with:\n\n• Tracking your food intake\n• Calculating calories and macros\n• Viewing your history\n• Adding, editing, and deleting food entries\n• Providing nutrition advice\n\nPlease enter your OpenRouter API key to get started.',
+      name: 'chatWelcome',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Chat History`
+  String get chatHistoryLabel {
+    return Intl.message(
+      'Chat History',
+      name: 'chatHistoryLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear History`
+  String get chatClearHistory {
+    return Intl.message(
+      'Clear History',
+      name: 'chatClearHistory',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Are you sure you want to clear all chat history?`
+  String get chatClearHistoryConfirm {
+    return Intl.message(
+      'Are you sure you want to clear all chat history?',
+      name: 'chatClearHistoryConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Chat history cleared`
+  String get chatClearHistorySuccess {
+    return Intl.message(
+      'Chat history cleared',
+      name: 'chatClearHistorySuccess',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Delete message`
+  String get chatDeleteMessage {
+    return Intl.message(
+      'Delete message',
+      name: 'chatDeleteMessage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy message`
+  String get chatCopyMessage {
+    return Intl.message(
+      'Copy message',
+      name: 'chatCopyMessage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Message copied to clipboard`
+  String get chatMessageCopied {
+    return Intl.message(
+      'Message copied to clipboard',
+      name: 'chatMessageCopied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Chat Settings`
+  String get chatSettingsLabel {
+    return Intl.message(
+      'Chat Settings',
+      name: 'chatSettingsLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API Key`
+  String get chatApiKeyLabel {
+    return Intl.message(
+      'API Key',
+      name: 'chatApiKeyLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your OpenRouter API key for AI chat functionality`
+  String get chatApiKeyDescription {
+    return Intl.message(
+      'Your OpenRouter API key for AI chat functionality',
+      name: 'chatApiKeyDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `AI Model`
+  String get chatModelLabel {
+    return Intl.message(
+      'AI Model',
+      name: 'chatModelLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Select the AI model to use for chat`
+  String get chatModelDescription {
+    return Intl.message(
+      'Select the AI model to use for chat',
+      name: 'chatModelDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Claude 3.5 Sonnet (Recommended)`
+  String get chatModelClaude35Sonnet {
+    return Intl.message(
+      'Claude 3.5 Sonnet (Recommended)',
+      name: 'chatModelClaude35Sonnet',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Claude 3.5 Haiku (Fast)`
+  String get chatModelClaude35Haiku {
+    return Intl.message(
+      'Claude 3.5 Haiku (Fast)',
+      name: 'chatModelClaude35Haiku',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Claude 3 Opus (Most Capable)`
+  String get chatModelClaude3Opus {
+    return Intl.message(
+      'Claude 3 Opus (Most Capable)',
+      name: 'chatModelClaude3Opus',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `GPT-4`
+  String get chatModelGPT4 {
+    return Intl.message(
+      'GPT-4',
+      name: 'chatModelGPT4',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `GPT-3.5 Turbo`
+  String get chatModelGPT35Turbo {
+    return Intl.message(
+      'GPT-3.5 Turbo',
+      name: 'chatModelGPT35Turbo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Gemini Pro`
+  String get chatModelGeminiPro {
+    return Intl.message(
+      'Gemini Pro',
+      name: 'chatModelGeminiPro',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Llama 3.1`
+  String get chatModelLlama {
+    return Intl.message(
+      'Llama 3.1',
+      name: 'chatModelLlama',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API key saved`
+  String get chatApiKeySaved {
+    return Intl.message(
+      'API key saved',
+      name: 'chatApiKeySaved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API key removed`
+  String get chatApiKeyRemoved {
+    return Intl.message(
+      'API key removed',
+      name: 'chatApiKeyRemoved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Model saved`
+  String get chatModelSaved {
+    return Intl.message(
+      'Model saved',
+      name: 'chatModelSaved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Chat settings saved`
+  String get chatSettingsSaved {
+    return Intl.message(
+      'Chat settings saved',
+      name: 'chatSettingsSaved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Chat Settings`
+  String get settingsChatLabel {
+    return Intl.message(
+      'Chat Settings',
+      name: 'settingsChatLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API Key Status`
+  String get chatApiKeyStatus {
+    return Intl.message(
+      'API Key Status',
+      name: 'chatApiKeyStatus',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View`
+  String get chatApiKeyView {
+    return Intl.message(
+      'View',
+      name: 'chatApiKeyView',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Change`
+  String get chatApiKeyChange {
+    return Intl.message(
+      'Change',
+      name: 'chatApiKeyChange',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove`
+  String get chatApiKeyRemove {
+    return Intl.message(
+      'Remove',
+      name: 'chatApiKeyRemove',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `sk-or-v1-****`
+  String get chatApiKeyMasked {
+    return Intl.message(
+      'sk-or-v1-****',
+      name: 'chatApiKeyMasked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add Model`
+  String get chatCustomModelAdd {
+    return Intl.message(
+      'Add Model',
+      name: 'chatCustomModelAdd',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Remove`
+  String get chatCustomModelRemove {
+    return Intl.message(
+      'Remove',
+      name: 'chatCustomModelRemove',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Set Active`
+  String get chatCustomModelSetActive {
+    return Intl.message(
+      'Set Active',
+      name: 'chatCustomModelSetActive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Model added successfully`
+  String get chatCustomModelAdded {
+    return Intl.message(
+      'Model added successfully',
+      name: 'chatCustomModelAdded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Model removed successfully`
+  String get chatCustomModelRemoved {
+    return Intl.message(
+      'Model removed successfully',
+      name: 'chatCustomModelRemoved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invalid model identifier`
+  String get chatCustomModelInvalid {
+    return Intl.message(
+      'Invalid model identifier',
+      name: 'chatCustomModelInvalid',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `e.g., deepseek/deepseek-chat-v3-0324:free`
+  String get chatCustomModelIdentifierHint {
+    return Intl.message(
+      'e.g., deepseek/deepseek-chat-v3-0324:free',
+      name: 'chatCustomModelIdentifierHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Custom Models`
+  String get chatCustomModelLabel {
+    return Intl.message(
+      'Custom Models',
+      name: 'chatCustomModelLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Model Identifier`
+  String get chatCustomModelInputLabel {
+    return Intl.message(
+      'Model Identifier',
+      name: 'chatCustomModelInputLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paste model identifier here`
+  String get chatCustomModelInputHint {
+    return Intl.message(
+      'Paste model identifier here',
+      name: 'chatCustomModelInputHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Saved Models`
+  String get chatCustomModelListLabel {
+    return Intl.message(
+      'Saved Models',
+      name: 'chatCustomModelListLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No custom models added yet`
+  String get chatCustomModelNoModels {
+    return Intl.message(
+      'No custom models added yet',
+      name: 'chatCustomModelNoModels',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Active`
+  String get chatCustomModelActive {
+    return Intl.message(
+      'Active',
+      name: 'chatCustomModelActive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Set as Active Model`
+  String get chatCustomModelSetAsActive {
+    return Intl.message(
+      'Set as Active Model',
+      name: 'chatCustomModelSetAsActive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Are you sure you want to remove this model?`
+  String get chatCustomModelRemoveConfirm {
+    return Intl.message(
+      'Are you sure you want to remove this model?',
+      name: 'chatCustomModelRemoveConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Are you sure you want to remove your API key?`
+  String get chatApiKeyRemoveConfirm {
+    return Intl.message(
+      'Are you sure you want to remove your API key?',
+      name: 'chatApiKeyRemoveConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View API Key`
+  String get chatApiKeyViewConfirm {
+    return Intl.message(
+      'View API Key',
+      name: 'chatApiKeyViewConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This will temporarily show your full API key. Be careful not to share it.`
+  String get chatApiKeyViewConfirmText {
+    return Intl.message(
+      'This will temporarily show your full API key. Be careful not to share it.',
+      name: 'chatApiKeyViewConfirmText',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API key copied to clipboard`
+  String get chatApiKeyCopied {
+    return Intl.message(
+      'API key copied to clipboard',
+      name: 'chatApiKeyCopied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `API key changed successfully`
+  String get chatApiKeyChanged {
+    return Intl.message(
+      'API key changed successfully',
+      name: 'chatApiKeyChanged',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
