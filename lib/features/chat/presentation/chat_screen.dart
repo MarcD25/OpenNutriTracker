@@ -186,46 +186,47 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildChatInterface(ChatLoaded state) {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: state.messages.length,
-            itemBuilder: (context, index) {
-              final message = state.messages[index];
-              return ChatMessageWidget(
-                message: message,
-                onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
-              );
-            },
-          ),
-        ),
-        if (state.isLoading)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                const SizedBox(width: 16),
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 16),
-                Text(S.of(context).chatLoading),
-              ],
+    return SafeArea(
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              itemCount: state.messages.length,
+              itemBuilder: (context, index) {
+                final message = state.messages[index];
+                return ChatMessageWidget(
+                  message: message,
+                  onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
+                );
+              },
             ),
           ),
-        _buildMessageInput(),
-      ],
+          if (state.isLoading)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(S.of(context).chatLoading),
+                ],
+              ),
+            ),
+          _buildMessageInput(),
+        ],
+      ),
     );
   }
 
   Widget _buildMessageInput() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
@@ -234,30 +235,50 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: S.of(context).chatPlaceholder,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: 48,
+                  maxHeight: 120,
+                ),
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: S.of(context).chatPlaceholder,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  maxLines: null,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
                 ),
               ),
-              maxLines: null,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _sendMessage,
-            icon: const Icon(Icons.send),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: IconButton(
+                onPressed: _sendMessage,
+                icon: const Icon(Icons.send, color: Colors.white),
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

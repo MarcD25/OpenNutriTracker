@@ -179,37 +179,74 @@ class _ChatSettingsDialogState extends State<ChatSettingsDialog> {
           children: [
             if (hasApiKey) ...[
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showApiKey ? null : _viewApiKey,
-                  icon: Icon(_showApiKey ? Icons.visibility_off : Icons.visibility),
-                  label: Text(_showApiKey ? 'Hide' : S.of(context).chatApiKeyView),
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: _showApiKey ? null : _viewApiKey,
+                    icon: Icon(
+                      _showApiKey ? Icons.visibility_off : Icons.visibility,
+                      size: 16,
+                    ),
+                    label: Text(
+                      _showApiKey ? 'Hide' : 'View',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _changeApiKey,
-                  icon: const Icon(Icons.edit),
-                  label: Text(S.of(context).chatApiKeyChange),
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: _changeApiKey,
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: Text(
+                      'Change',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _removeApiKey,
-                  icon: const Icon(Icons.delete),
-                  label: Text(S.of(context).chatApiKeyRemove),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: _removeApiKey,
+                    icon: const Icon(Icons.delete, size: 16),
+                    label: Text(
+                      'Remove',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
                   ),
                 ),
               ),
             ] else ...[
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _addApiKey,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add API Key'),
+                child: SizedBox(
+                  height: 40,
+                  child: ElevatedButton.icon(
+                    onPressed: _addApiKey,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text(
+                      'Add Key',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -317,14 +354,27 @@ class _ChatSettingsDialogState extends State<ChatSettingsDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!model.isActive)
-              TextButton(
-                onPressed: () => _setActiveModel(model.identifier),
-                child: Text(S.of(context).chatCustomModelSetActive),
+              SizedBox(
+                height: 32,
+                child: TextButton(
+                  onPressed: () => _setActiveModel(model.identifier),
+                  child: Text(
+                    'Active',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
               ),
             IconButton(
               onPressed: () => _removeCustomModel(model.identifier),
-              icon: const Icon(Icons.delete),
+              icon: const Icon(Icons.delete, size: 18),
               color: Colors.red,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
             ),
           ],
         ),

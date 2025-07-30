@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
 import 'package:opennutritracker/generated/l10n.dart';
 
@@ -19,17 +20,10 @@ class ChatMessageWidget extends StatelessWidget {
     final isUser = message.type == ChatMessageType.user;
     
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isUser) ...[
-            CircleAvatar(
-              backgroundColor: Theme.of(context).primaryColor,
-              child: const Icon(Icons.smart_toy, color: Colors.white),
-            ),
-            const SizedBox(width: 8),
-          ],
           Expanded(
             child: Column(
               crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -57,44 +51,7 @@ class ChatMessageWidget extends StatelessWidget {
                           ),
                           textAlign: isUser ? TextAlign.right : TextAlign.left,
                         )
-                                            : MarkdownBody(
-                          data: message.content,
-                          styleSheet: MarkdownStyleSheet(
-                            h1: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                            ),
-                            h2: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                            ),
-                            h3: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                            ),
-                            p: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                            ),
-                            strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            em: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: Colors.white,
-                            ),
-                            listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                            ),
-                            code: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontFamily: 'monospace',
-                              backgroundColor: Colors.grey.shade700,
-                              color: Colors.white,
-                            ),
-                            codeblockDecoration: BoxDecoration(
-                              color: Colors.grey.shade800,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          selectable: true,
-                        ),
+                      : _buildMarkdownWithScrollableTables(context),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -122,15 +79,52 @@ class ChatMessageWidget extends StatelessWidget {
               ],
             ),
           ),
-          if (isUser) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundColor: Colors.grey.shade300,
-              child: const Icon(Icons.person, color: Colors.grey),
-            ),
-          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildMarkdownWithScrollableTables(BuildContext context) {
+    return MarkdownBody(
+      data: message.content,
+      styleSheet: MarkdownStyleSheet(
+        h1: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          color: Colors.white,
+        ),
+        h2: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: Colors.white,
+        ),
+        h3: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: Colors.white,
+        ),
+        p: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Colors.white,
+        ),
+        strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        em: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontStyle: FontStyle.italic,
+          color: Colors.white,
+        ),
+        listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Colors.white,
+        ),
+        code: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontFamily: 'monospace',
+          backgroundColor: Colors.grey.shade700,
+          color: Colors.white,
+        ),
+        codeblockDecoration: BoxDecoration(
+          color: Colors.grey.shade800,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+      selectable: true,
+      builders: {
+        'table': ScrollableTableBuilder(),
+      },
     );
   }
 
@@ -186,6 +180,60 @@ class ChatMessageWidget extends StatelessWidget {
     Clipboard.setData(ClipboardData(text: message.content));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(S.of(context).chatMessageCopied)),
+    );
+  }
+}
+
+class ScrollableTableBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    if (element.tag == 'table') {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: _buildTable(element),
+      );
+    }
+    return null;
+  }
+
+  Widget _buildTable(md.Element element) {
+    final rows = element.children ?? [];
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    final tableRows = <TableRow>[];
+    
+    for (int i = 0; i < rows.length; i++) {
+      final row = rows[i] as md.Element;
+      final cells = row.children ?? [];
+      final tableCells = <Widget>[];
+
+      for (final cell in cells) {
+        final cellElement = cell as md.Element;
+        final isHeader = row.tag == 'thead' || (i == 0 && (element.children!.first as md.Element).tag != 'thead');
+        tableCells.add(
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isHeader ? Colors.grey.shade700 : Colors.grey.shade800,
+              border: Border.all(color: Colors.grey.shade600, width: 1),
+            ),
+            child: Text(
+              cellElement.textContent,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        );
+      }
+      
+      tableRows.add(TableRow(children: tableCells));
+    }
+
+    return Table(
+      children: tableRows,
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
     );
   }
 } 
