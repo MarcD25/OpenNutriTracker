@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:opennutritracker/core/presentation/widgets/add_item_bottom_sheet.dart';
+import 'package:opennutritracker/core/presentation/widgets/global_processing_indicator.dart';
 import 'package:opennutritracker/features/diary/diary_page.dart';
 import 'package:opennutritracker/core/presentation/widgets/home_appbar.dart';
 import 'package:opennutritracker/features/home/home_page.dart';
@@ -43,7 +44,12 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _appbarPages[_selectedPageIndex],
-      body: _bodyPages[_selectedPageIndex],
+      body: Stack(
+        children: [
+          _bodyPages[_selectedPageIndex],
+          const GlobalProcessingIndicator(),
+        ],
+      ),
       floatingActionButton: _selectedPageIndex == 0
           ? FloatingActionButton(
               onPressed: () => _onFabPressed(context),

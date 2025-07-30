@@ -98,6 +98,7 @@
   "snackExample": "e.g. apple, ice cream, chocolate ...",
   "editItemDialogTitle": "Edit item",
   "itemUpdatedSnackbar": "Item updated",
+  "aiProcessingMessage": "AI is processing your message...",
   "deleteTimeDialogTitle": "Delete Item?",
   "deleteTimeDialogContent": "Do want to delete the selected item?",
   "deleteTimeDialogPluralTitle": "Delete Items?",

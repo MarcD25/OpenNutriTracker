@@ -17,6 +17,7 @@ import 'package:opennutritracker/core/domain/usecase/add_intake_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/add_tracked_day_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/add_user_activity_usercase.dart';
 import 'package:opennutritracker/core/domain/usecase/add_user_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/bulk_intake_operations_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/delete_intake_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/delete_user_activity_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/get_config_usecase.dart';
@@ -47,6 +48,7 @@ import 'package:opennutritracker/features/add_meal/presentation/bloc/recent_meal
 import 'package:opennutritracker/features/chat/data/data_source/chat_data_source.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usecase.dart';
+import 'package:opennutritracker/features/chat/domain/usecase/chat_diary_data_usecase.dart';
 import 'package:opennutritracker/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/calendar_day_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/diary_bloc.dart';
@@ -141,6 +143,8 @@ Future<void> initLocator() async {
       () => DeleteIntakeUsecase(locator()));
   locator.registerLazySingleton<UpdateIntakeUsecase>(
       () => UpdateIntakeUsecase(locator()));
+  locator.registerLazySingleton<BulkIntakeOperationsUsecase>(
+      () => BulkIntakeOperationsUsecase(locator()));
   locator.registerLazySingleton<GetUserActivityUsecase>(
       () => GetUserActivityUsecase(locator()));
   locator.registerLazySingleton<AddUserActivityUsecase>(
@@ -160,9 +164,11 @@ Future<void> initLocator() async {
       () => ExportDataUsecase(locator(), locator(), locator()));
   locator.registerLazySingleton(
       () => ImportDataUsecase(locator(), locator(), locator()));
-  locator.registerLazySingleton<ChatUsecase>(() => ChatUsecase(locator(), locator(), locator()));
+  locator.registerLazySingleton<ChatUsecase>(() => ChatUsecase(locator(), locator(), locator(), locator(), locator()));
   locator.registerLazySingleton<AIFoodEntryUsecase>(() => AIFoodEntryUsecase(
     locator(), locator(), locator(), locator()));
+  locator.registerLazySingleton<ChatDiaryDataUsecase>(() => ChatDiaryDataUsecase(
+    locator(), locator()));
 
   // Repositories
   locator.registerLazySingleton(() => ConfigRepository(locator()));

@@ -57,7 +57,7 @@ class ChatMessageWidget extends StatelessWidget {
                           ),
                           textAlign: isUser ? TextAlign.right : TextAlign.left,
                         )
-                      : MarkdownBody(
+                                            : MarkdownBody(
                           data: message.content,
                           styleSheet: MarkdownStyleSheet(
                             h1: Theme.of(context).textTheme.headlineSmall?.copyWith(

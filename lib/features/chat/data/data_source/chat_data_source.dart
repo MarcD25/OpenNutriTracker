@@ -161,6 +161,7 @@ class ChatDataSource {
       'timestamp': msg.timestamp.toIso8601String(),
     }).toList());
     await prefs.setString(_chatHistoryKey, historyJson);
+    _log.info('Saved chat history with ${messages.length} messages');
   }
 
   Future<void> clearChatHistory() async {
@@ -176,7 +177,7 @@ class ChatDataSource {
     _log.info('Cleared all chat data');
   }
 
-  Future<String> sendMessage(String message, String apiKey, String model, {String? userInfo}) async {
+  Future<String> sendMessage(String message, String apiKey, String model, {String? userInfo, List<ChatMessageEntity>? chatHistory}) async {
     try {
       _log.info('Sending message to OpenRouter with model: $model');
       _log.info('API key length: ${apiKey.length}');
@@ -193,10 +194,9 @@ class ChatDataSource {
         'User-Agent': 'OpenNutriTracker/1.0',
       }}');
       
-      final requestBody = {
-        'model': model,
-        'messages': [
-          {
+      // Build messages array with system message, chat history, and current message
+      final messages = [
+                  {
             'role': 'system',
             'content': '''You are a helpful nutrition assistant for the OpenNutriTracker app. You can help users with:
 
@@ -205,8 +205,9 @@ class ChatDataSource {
 3. **History Viewing**: Help users understand their eating patterns
 4. **Nutrition Advice**: Provide healthy eating tips and recommendations
 5. **App Assistance**: Help users navigate and use the app features
+6. **Progress Analysis**: Analyze user's diary data and provide insights on their nutrition progress
 
-**IMPORTANT: You can now directly add food entries to the user's diary!** When users provide food information, you can automatically add it to their diary. 
+**IMPORTANT: You can directly add food entries to the user's diary!** When users provide food information, you can automatically add it to their diary. 
 
 **CRITICAL: When adding food to the diary, you MUST use this EXACT format:**
 
@@ -233,6 +234,40 @@ Date: [today/yesterday/tomorrow/specific date]
 - User says "I had chicken and rice for lunch" → Add both entries
 - User says "I had a snack yesterday" → Add with yesterday's date
 
+**Diary Data Access:**
+You now have access to the user's complete diary data including:
+- Food entries for any date
+- Daily progress summaries
+- Calorie and macro tracking
+- Recent progress trends
+- Meal breakdowns by type (breakfast, lunch, dinner, snack)
+
+Use this data to provide personalized insights, identify patterns, suggest improvements, and help users understand their nutrition habits.
+
+**Bulk Operations:**
+You can now perform mass operations on food entries:
+- **Mass Delete**: Delete all entries for specific dates, meal types, or date ranges
+- **Mass Edit**: Update multiple entries simultaneously (amount, meal type, unit)
+- **Mass Add**: Add multiple food entries at once
+
+**Date Range Support:**
+When adding food entries, you can specify date ranges:
+- Single dates: "today", "yesterday", "tomorrow", or specific dates
+- Date ranges: "[each June date: 1/6/2025 through 30/6/2025]"
+- Month ranges: "[each June date]" (adds to every day in June)
+- Week ranges: "[each day this week]"
+
+**Examples of bulk operations:**
+- "Delete all breakfast entries for yesterday"
+- "Delete all entries for last week"
+- "Update all snack entries to have 50g amount"
+- "Delete all entries for January 2024"
+- "Add 5 food entries for today"
+- "Delete all dinner entries for this month"
+- "Add food entries for every day in June"
+- "Add breakfast for all days this month"
+- "Add meals for the entire week"
+
 ${userInfo != null ? '''
 **User Profile Information:**
 $userInfo
@@ -252,13 +287,29 @@ Always be helpful, accurate, and encouraging. When discussing nutrition, provide
 
 Keep responses concise but informative. Use proper Markdown formatting to make information easy to scan and understand.
 
-Note: Avoid using emojis in your responses as they may not display correctly in the app.'''
-          },
-          {
-            'role': 'user',
-            'content': message,
+Note: Avoid using emojis in your responses as they do not display correctly in the app.'''
           }
-        ],
+      ];
+
+      // Add chat history messages (excluding the current message to avoid duplication)
+      if (chatHistory != null) {
+        for (final msg in chatHistory) {
+          messages.add({
+            'role': msg.type == ChatMessageType.user ? 'user' : 'assistant',
+            'content': msg.content,
+          });
+        }
+      }
+
+      // Add the current user message
+      messages.add({
+        'role': 'user',
+        'content': message,
+      });
+
+      final requestBody = {
+        'model': model,
+        'messages': messages,
         'max_tokens': 1000,
         'temperature': 0.7,
       };
@@ -275,17 +326,32 @@ Note: Avoid using emojis in your responses as they may not display correctly in 
           'User-Agent': 'OpenNutriTracker/1.0',
         },
         body: json.encode(requestBody),
+      ).timeout(
+        const Duration(seconds: 60), // 60 second timeout
+        onTimeout: () {
+          throw Exception('Request timed out. Please try again.');
+        },
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['choices'][0]['message']['content'];
+        // Ensure proper UTF-8 decoding
+        final responseBody = utf8.decode(response.bodyBytes);
+        final data = json.decode(responseBody);
+        final content = data['choices'][0]['message']['content'];
+        _log.info('Received response with ${content.length} characters');
+        return content;
       } else {
         _log.severe('OpenRouter API error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to get response from AI assistant');
       }
     } catch (e) {
       _log.severe('Error sending message to OpenRouter: $e');
+      
+      // Check if it's a network connectivity issue
+      if (e.toString().contains('Failed host lookup') || e.toString().contains('No address associated with hostname')) {
+        throw Exception('Network connectivity issue. Please check your internet connection and try again.');
+      }
+      
       throw Exception('Failed to connect to AI assistant');
     }
   }

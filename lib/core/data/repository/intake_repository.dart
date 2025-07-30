@@ -55,4 +55,63 @@ class IntakeRepository {
     final result = await _intakeDataSource.getIntakeById(intakeId);
     return result == null ? null : IntakeEntity.fromIntakeDBO(result);
   }
+
+  /// Deletes multiple intake entries by their IDs
+  Future<void> deleteMultipleIntakes(List<String> intakeIds) async {
+    await _intakeDataSource.deleteMultipleIntakesById(intakeIds);
+  }
+
+  /// Deletes all intake entries for a specific date
+  Future<void> deleteAllIntakesForDate(DateTime date) async {
+    await _intakeDataSource.deleteAllIntakesForDate(date);
+  }
+
+  /// Deletes all intake entries for a specific meal type on a specific date
+  Future<void> deleteIntakesForDateAndType(IntakeTypeEntity mealType, DateTime date) async {
+    await _intakeDataSource.deleteIntakesForDateAndType(
+      date, 
+      IntakeTypeDBO.fromIntakeTypeEntity(mealType)
+    );
+  }
+
+  /// Deletes all intake entries for a date range
+  Future<void> deleteAllIntakesForDateRange(DateTime startDate, DateTime endDate) async {
+    await _intakeDataSource.deleteAllIntakesForDateRange(startDate, endDate);
+  }
+
+  /// Updates multiple intake entries with the same fields
+  Future<void> updateMultipleIntakes(List<String> intakeIds, Map<String, dynamic> fields) async {
+    await _intakeDataSource.updateMultipleIntakes(intakeIds, fields);
+  }
+
+  /// Gets all intake entries for a date range
+  Future<List<IntakeEntity>> getAllIntakesForDateRange(DateTime startDate, DateTime endDate) async {
+    final intakeDBOList = await _intakeDataSource.getAllIntakesForDateRange(startDate, endDate);
+    return intakeDBOList
+        .map((intakeDBO) => IntakeEntity.fromIntakeDBO(intakeDBO))
+        .toList();
+  }
+
+  /// Gets all intake entries for a specific meal type
+  Future<List<IntakeEntity>> getAllIntakesByType(IntakeTypeEntity mealType) async {
+    final intakeDBOList = await _intakeDataSource.getAllIntakesByType(
+      IntakeTypeDBO.fromIntakeTypeEntity(mealType)
+    );
+    return intakeDBOList
+        .map((intakeDBO) => IntakeEntity.fromIntakeDBO(intakeDBO))
+        .toList();
+  }
+
+  /// Gets all intake entries for a specific meal type in a date range
+  Future<List<IntakeEntity>> getAllIntakesByTypeAndDateRange(
+      IntakeTypeEntity mealType, DateTime startDate, DateTime endDate) async {
+    final intakeDBOList = await _intakeDataSource.getAllIntakesByTypeAndDateRange(
+      IntakeTypeDBO.fromIntakeTypeEntity(mealType),
+      startDate,
+      endDate
+    );
+    return intakeDBOList
+        .map((intakeDBO) => IntakeEntity.fromIntakeDBO(intakeDBO))
+        .toList();
+  }
 }

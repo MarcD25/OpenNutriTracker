@@ -3,18 +3,24 @@ import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity
 import 'package:opennutritracker/features/chat/domain/entity/custom_model_entity.dart';
 import 'package:opennutritracker/core/utils/id_generator.dart';
 import 'package:opennutritracker/core/domain/entity/user_gender_entity.dart';
+import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
+import 'package:opennutritracker/core/domain/entity/intake_type_entity.dart';
 import 'package:opennutritracker/core/domain/usecase/get_user_usecase.dart';
 import 'package:opennutritracker/core/utils/calc/bmi_calc.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usecase.dart';
+import 'package:opennutritracker/features/chat/domain/usecase/chat_diary_data_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/bulk_intake_operations_usecase.dart';
 import 'package:logging/logging.dart';
 
 class ChatUsecase {
   final ChatDataSource _chatDataSource;
   final GetUserUsecase _getUserUsecase;
   final AIFoodEntryUsecase _aiFoodEntryUsecase;
+  final ChatDiaryDataUsecase _chatDiaryDataUsecase;
+  final BulkIntakeOperationsUsecase _bulkIntakeOperationsUsecase;
   final Logger _log = Logger('ChatUsecase');
 
-  ChatUsecase(this._chatDataSource, this._getUserUsecase, this._aiFoodEntryUsecase);
+  ChatUsecase(this._chatDataSource, this._getUserUsecase, this._aiFoodEntryUsecase, this._chatDiaryDataUsecase, this._bulkIntakeOperationsUsecase);
 
   // API Key Management
   Future<String?> getApiKey() async {
@@ -97,9 +103,9 @@ class ChatUsecase {
   }
 
   // Message Handling
-  Future<ChatMessageEntity> sendMessage(String message, String apiKey, String model) async {
+  Future<ChatMessageEntity> sendMessage(String message, String apiKey, String model, {List<ChatMessageEntity>? chatHistory}) async {
     final userInfo = await getUserInfoForChat();
-    final response = await _chatDataSource.sendMessage(message, apiKey, model, userInfo: userInfo);
+    final response = await _chatDataSource.sendMessage(message, apiKey, model, userInfo: userInfo, chatHistory: chatHistory);
     
     // Parse AI response for food entries and add them to diary
     await _parseAndAddFoodEntries(response, message);
@@ -152,30 +158,23 @@ class ChatUsecase {
           
           _log.info('Parsed food entry: $foodName - ${calories}cal, ${protein}g protein, ${carbs}g carbs, ${fat}g fat, $amount $unit, $mealType, $dateString');
           
-          // Parse the date
-          DateTime? targetDate;
-          if (dateString.toLowerCase() == 'today') {
-            targetDate = DateTime.now();
-          } else if (dateString.toLowerCase() == 'yesterday') {
-            targetDate = DateTime.now().subtract(const Duration(days: 1));
-          } else if (dateString.toLowerCase() == 'tomorrow') {
-            targetDate = DateTime.now().add(const Duration(days: 1));
-          } else {
-            targetDate = parseDate(dateString) ?? DateTime.now();
+          // Parse the date and handle bulk operations
+          final dates = parseDateRange(dateString);
+          
+          // Add the food entry for each date
+          for (final targetDate in dates) {
+            await addFoodEntry(
+              foodName: foodName,
+              calories: calories,
+              protein: protein,
+              carbs: carbs,
+              fat: fat,
+              amount: amount,
+              unit: unit,
+              mealType: mealType,
+              date: targetDate,
+            );
           }
-
-          // Add the food entry
-          await addFoodEntry(
-            foodName: foodName,
-            calories: calories,
-            protein: protein,
-            carbs: carbs,
-            fat: fat,
-            amount: amount,
-            unit: unit,
-            mealType: mealType,
-            date: targetDate,
-          );
           
           _log.info('Successfully added food entry: $foodName');
         } catch (e) {
@@ -205,6 +204,14 @@ class ChatUsecase {
       final bmi = BMICalc.getBMI(user);
       final bmiStatus = BMICalc.getNutritionalStatus(bmi);
       
+      // Get recent diary data
+      final recentProgress = await _chatDiaryDataUsecase.getRecentProgressSummary(days: 7);
+      final todayDiaryData = await _chatDiaryDataUsecase.getDiaryDataForAI(
+        specificDate: DateTime.now(),
+        includeFoodEntries: true,
+        includeProgress: true,
+      );
+      
       return '''User Profile:
 - Age: ${user.age} years old
 - Gender: ${user.gender == UserGenderEntity.male ? 'Male' : 'Female'}
@@ -212,8 +219,15 @@ class ChatUsecase {
 - Weight: ${user.weightKG.toStringAsFixed(1)} kg
 - BMI: ${bmi.toStringAsFixed(1)} (${bmiStatus.toString().split('.').last})
 - Activity Level: ${user.pal.toString().split('.').last}
-- Weight Goal: ${user.goal.toString().split('.').last}''';
+- Weight Goal: ${user.goal.toString().split('.').last}
+
+**Recent Progress (Last 7 Days):**
+$recentProgress
+
+**Today's Diary Data:**
+$todayDiaryData''';
     } catch (e) {
+      _log.severe('Error getting user info for chat: $e');
       return 'User profile information not available.';
     }
   }
@@ -281,6 +295,188 @@ class ChatUsecase {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Parses a date string and returns a list of DateTime objects for bulk operations
+  List<DateTime> parseDateRange(String dateString) {
+    try {
+      final lowerDate = dateString.toLowerCase();
+      
+      // Handle single dates
+      if (lowerDate == 'today') {
+        return [DateTime.now()];
+      } else if (lowerDate == 'yesterday') {
+        return [DateTime.now().subtract(const Duration(days: 1))];
+      } else if (lowerDate == 'tomorrow') {
+        return [DateTime.now().add(const Duration(days: 1))];
+      }
+      
+      // Handle date ranges like "[each June date: 1/6/2025 through 30/6/2025]"
+      final rangeMatch = RegExp(r'\[each\s+(\w+)\s+date[:\s]+(\d{1,2}/\d{1,2}/\d{4})\s+through\s+(\d{1,2}/\d{1,2}/\d{4})\]', caseSensitive: false);
+      final rangeMatchResult = rangeMatch.firstMatch(dateString);
+      if (rangeMatchResult != null) {
+        final startDateStr = rangeMatchResult.group(2)!;
+        final endDateStr = rangeMatchResult.group(3)!;
+        
+        try {
+          final startDate = _parseDateString(startDateStr);
+          final endDate = _parseDateString(endDateStr);
+          
+          if (startDate != null && endDate != null) {
+            return _generateDateRange(startDate, endDate);
+          }
+        } catch (e) {
+          _log.severe('Error parsing date range: $e');
+        }
+      }
+      
+      // Handle month ranges like "[each June date]"
+      final monthMatch = RegExp(r'\[each\s+(\w+)\s+date\]', caseSensitive: false);
+      final monthMatchResult = monthMatch.firstMatch(dateString);
+      if (monthMatchResult != null) {
+        final monthName = monthMatchResult.group(1)!;
+        return _generateMonthRange(monthName);
+      }
+      
+      // Handle simple date format
+      final singleDate = parseDate(dateString);
+      if (singleDate != null) {
+        return [singleDate];
+      }
+      
+      // Default to today if parsing fails
+      return [DateTime.now()];
+    } catch (e) {
+      _log.severe('Error parsing date range: $e');
+      return [DateTime.now()];
+    }
+  }
+
+  /// Parses a date string in DD/MM/YYYY format
+  DateTime? _parseDateString(String dateStr) {
+    try {
+      final parts = dateStr.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        return DateTime(year, month, day);
+      }
+    } catch (e) {
+      _log.severe('Error parsing date string: $dateStr');
+    }
+    return null;
+  }
+
+  /// Generates a list of dates from start to end (inclusive)
+  List<DateTime> _generateDateRange(DateTime start, DateTime end) {
+    final dates = <DateTime>[];
+    var current = start;
+    
+    while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
+      dates.add(current);
+      current = current.add(const Duration(days: 1));
+    }
+    
+    _log.info('Generated ${dates.length} dates from ${start.toString().split(' ')[0]} to ${end.toString().split(' ')[0]}');
+    return dates;
+  }
+
+  /// Generates a list of dates for a specific month
+  List<DateTime> _generateMonthRange(String monthName) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    
+    // Map month names to month numbers
+    final monthMap = {
+      'january': 1, 'february': 2, 'march': 3, 'april': 4,
+      'may': 5, 'june': 6, 'july': 7, 'august': 8,
+      'september': 9, 'october': 10, 'november': 11, 'december': 12
+    };
+    
+    final monthNumber = monthMap[monthName.toLowerCase()];
+    if (monthNumber == null) {
+      _log.severe('Unknown month: $monthName');
+      return [DateTime.now()];
+    }
+    
+    final startDate = DateTime(currentYear, monthNumber, 1);
+    final endDate = DateTime(currentYear, monthNumber + 1, 0); // Last day of the month
+    
+    return _generateDateRange(startDate, endDate);
+  }
+
+  // Bulk Operations Methods
+
+  /// Deletes all intake entries for a specific date
+  Future<void> deleteAllIntakesForDate(DateTime date) async {
+    await _bulkIntakeOperationsUsecase.deleteAllIntakesForDate(date);
+  }
+
+  /// Deletes all intake entries for a specific meal type on a specific date
+  Future<void> deleteIntakesForDateAndType(String mealType, DateTime date) async {
+    final intakeType = _getIntakeTypeFromString(mealType);
+    await _bulkIntakeOperationsUsecase.deleteIntakesForDateAndType(intakeType, date);
+  }
+
+  /// Deletes all intake entries for a date range
+  Future<void> deleteAllIntakesForDateRange(DateTime startDate, DateTime endDate) async {
+    await _bulkIntakeOperationsUsecase.deleteAllIntakesForDateRange(startDate, endDate);
+  }
+
+  /// Deletes all intake entries for a specific meal type across all dates
+  Future<void> deleteAllIntakesByType(String mealType) async {
+    final intakeType = _getIntakeTypeFromString(mealType);
+    await _bulkIntakeOperationsUsecase.deleteAllIntakesByType(intakeType);
+  }
+
+  /// Deletes all intake entries for a specific meal type in a date range
+  Future<void> deleteIntakesByTypeAndDateRange(String mealType, DateTime startDate, DateTime endDate) async {
+    final intakeType = _getIntakeTypeFromString(mealType);
+    await _bulkIntakeOperationsUsecase.deleteIntakesByTypeAndDateRange(intakeType, startDate, endDate);
+  }
+
+  /// Updates multiple intake entries with the same fields
+  Future<void> updateMultipleIntakes(List<String> intakeIds, Map<String, dynamic> fields) async {
+    await _bulkIntakeOperationsUsecase.updateMultipleIntakes(intakeIds, fields);
+  }
+
+  /// Gets all intake entries for a date range
+  Future<List<IntakeEntity>> getAllIntakesForDateRange(DateTime startDate, DateTime endDate) async {
+    return await _bulkIntakeOperationsUsecase.getAllIntakesForDateRange(startDate, endDate);
+  }
+
+  /// Gets all intake entries for a specific meal type
+  Future<List<IntakeEntity>> getAllIntakesByType(String mealType) async {
+    final intakeType = _getIntakeTypeFromString(mealType);
+    return await _bulkIntakeOperationsUsecase.getAllIntakesByType(intakeType);
+  }
+
+  /// Gets all intake entries for a specific meal type in a date range
+  Future<List<IntakeEntity>> getAllIntakesByTypeAndDateRange(String mealType, DateTime startDate, DateTime endDate) async {
+    final intakeType = _getIntakeTypeFromString(mealType);
+    return await _bulkIntakeOperationsUsecase.getAllIntakesByTypeAndDateRange(intakeType, startDate, endDate);
+  }
+
+  /// Gets a summary of available bulk operations
+  String getBulkOperationsSummary() {
+    return _bulkIntakeOperationsUsecase.getBulkOperationsSummary();
+  }
+
+  /// Converts meal type string to IntakeTypeEntity
+  IntakeTypeEntity _getIntakeTypeFromString(String mealType) {
+    switch (mealType.toLowerCase()) {
+      case 'breakfast':
+        return IntakeTypeEntity.breakfast;
+      case 'lunch':
+        return IntakeTypeEntity.lunch;
+      case 'dinner':
+        return IntakeTypeEntity.dinner;
+      case 'snack':
+        return IntakeTypeEntity.snack;
+      default:
+        return IntakeTypeEntity.snack; // Default to snack
     }
   }
 } 

@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logging/logging.dart';
 import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
 import 'package:opennutritracker/features/chat/domain/entity/custom_model_entity.dart';
+import 'package:opennutritracker/features/chat/domain/service/chat_processing_service.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart';
 
 part 'chat_event.dart';
@@ -11,6 +13,8 @@ part 'chat_state.dart';
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final Logger _log = Logger('ChatBloc');
   final ChatUsecase _chatUsecase;
+  final ChatProcessingService _processingService = ChatProcessingService();
+  bool _isProcessingMessage = false;
 
   ChatBloc(this._chatUsecase) : super(ChatInitial()) {
     on<LoadChatEvent>((event, emit) async {
@@ -139,50 +143,60 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     });
 
     on<SendMessageEvent>((event, emit) async {
-      if (state is ChatLoaded) {
+      if (state is ChatLoaded && !_isProcessingMessage) {
+        _isProcessingMessage = true;
         final currentState = state as ChatLoaded;
-        final userMessage = _chatUsecase.createUserMessage(event.message);
         
-        final updatedMessages = [...currentState.messages, userMessage];
-        emit(ChatLoaded(
-          messages: updatedMessages,
+        _log.info('Starting message processing in BLoC...');
+        
+        // Create a completer to track when processing is done
+        final completer = Completer<void>();
+        
+        // Use the processing service for background processing
+        // This will continue even if the BLoC is disposed
+        _processingService.processMessage(
+          message: event.message,
           apiKey: currentState.apiKey,
           selectedModel: currentState.selectedModel,
-          customModels: currentState.customModels,
-          activeModel: currentState.activeModel,
-          isLoading: true,
-        ));
-
-        try {
-          await _chatUsecase.saveChatHistory(updatedMessages);
-          
-          final assistantMessage = await _chatUsecase.sendMessage(
-            event.message,
-            currentState.apiKey,
-            currentState.selectedModel,
-          );
-
-          final finalMessages = [...updatedMessages, assistantMessage];
-          await _chatUsecase.saveChatHistory(finalMessages);
-
-          emit(ChatLoaded(
-            messages: finalMessages,
-            apiKey: currentState.apiKey,
-            selectedModel: currentState.selectedModel,
-            customModels: currentState.customModels,
-            activeModel: currentState.activeModel,
-          ));
-        } catch (e) {
-          _log.severe('Error sending message: $e');
-          emit(ChatLoaded(
-            messages: updatedMessages,
-            apiKey: currentState.apiKey,
-            selectedModel: currentState.selectedModel,
-            customModels: currentState.customModels,
-            activeModel: currentState.activeModel,
-          ));
-          emit(ChatError('Failed to send message'));
-        }
+          chatHistory: currentState.messages,
+          onUpdate: (messages) {
+            // Update the UI with new messages
+            // Only emit if the BLoC is still active and not completed
+            if (!isClosed && !emit.isDone) {
+              emit(ChatLoaded(
+                messages: messages,
+                apiKey: currentState.apiKey,
+                selectedModel: currentState.selectedModel,
+                customModels: currentState.customModels,
+                activeModel: currentState.activeModel,
+                isLoading: messages.length > currentState.messages.length,
+              ));
+              _log.info('BLoC emitted updated state');
+            } else {
+              _log.info('BLoC is closed or emit is done, skipping emit');
+            }
+          },
+          onError: (error) {
+            _log.severe('Error sending message: $error');
+            if (!isClosed && !emit.isDone) {
+              emit(ChatError(error));
+            }
+            // Only complete if not already completed
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          },
+        ).then((_) {
+          // Only complete if not already completed
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
+        });
+        
+        // Wait for processing to complete before finishing the event handler
+        await completer.future;
+        _isProcessingMessage = false;
+        _log.info('BLoC message processing completed');
       }
     });
 

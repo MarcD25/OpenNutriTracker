@@ -97,6 +97,7 @@
   "snackExample": "ör. elma, dondurma, çikolata ...",
   "editItemDialogTitle": "Öğeyi Düzenle",
   "itemUpdatedSnackbar": "Öğe güncellendi",
+  "aiProcessingMessage": "AI mesajınızı işliyor...",
   "deleteTimeDialogTitle": "Öğeyi Sil?",
   "deleteTimeDialogContent": "Seçilen öğeyi silmek istiyor musunuz?",
   "deleteTimeDialogPluralTitle": "Girdiler silinsin mi?",

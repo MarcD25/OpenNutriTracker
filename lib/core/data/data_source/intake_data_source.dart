@@ -78,4 +78,89 @@ class IntakeDataSource {
 
     return uniqueIntake.take(number).toList();
   }
+
+  /// Deletes multiple intake entries by their IDs
+  Future<void> deleteMultipleIntakesById(List<String> intakeIds) async {
+    log.fine('Deleting multiple intake items from db');
+    for (final id in intakeIds) {
+      final intakes = _intakeBox.values
+          .where((dbo) => dbo.id == id)
+          .toList();
+      for (final intake in intakes) {
+        intake.delete();
+      }
+    }
+  }
+
+  /// Deletes all intake entries for a specific date
+  Future<void> deleteAllIntakesForDate(DateTime date) async {
+    log.fine('Deleting all intake items for date: $date');
+    final intakesToDelete = _intakeBox.values
+        .where((intake) => DateUtils.isSameDay(date, intake.dateTime))
+        .toList();
+    for (final intake in intakesToDelete) {
+      intake.delete();
+    }
+  }
+
+  /// Deletes all intake entries for a specific meal type on a specific date
+  Future<void> deleteIntakesForDateAndType(DateTime date, IntakeTypeDBO mealType) async {
+    log.fine('Deleting intake items for date: $date and type: $mealType');
+    final intakesToDelete = _intakeBox.values
+        .where((intake) => 
+            DateUtils.isSameDay(date, intake.dateTime) && 
+            intake.type == mealType)
+        .toList();
+    for (final intake in intakesToDelete) {
+      intake.delete();
+    }
+  }
+
+  /// Deletes all intake entries for a date range
+  Future<void> deleteAllIntakesForDateRange(DateTime startDate, DateTime endDate) async {
+    log.fine('Deleting all intake items for date range: $startDate to $endDate');
+    final intakesToDelete = _intakeBox.values
+        .where((intake) => 
+            intake.dateTime.isAfter(startDate.subtract(const Duration(days: 1))) &&
+            intake.dateTime.isBefore(endDate.add(const Duration(days: 1))))
+        .toList();
+    for (final intake in intakesToDelete) {
+      intake.delete();
+    }
+  }
+
+  /// Updates multiple intake entries with the same fields
+  Future<void> updateMultipleIntakes(List<String> intakeIds, Map<String, dynamic> fields) async {
+    log.fine('Updating multiple intake items with fields: $fields');
+    for (final id in intakeIds) {
+      await updateIntake(id, fields);
+    }
+  }
+
+  /// Gets all intake entries for a date range
+  Future<List<IntakeDBO>> getAllIntakesForDateRange(DateTime startDate, DateTime endDate) async {
+    return _intakeBox.values
+        .where((intake) => 
+            intake.dateTime.isAfter(startDate.subtract(const Duration(days: 1))) &&
+            intake.dateTime.isBefore(endDate.add(const Duration(days: 1))))
+        .toList();
+  }
+
+  /// Gets all intake entries for a specific meal type
+  Future<List<IntakeDBO>> getAllIntakesByType(IntakeTypeDBO mealType) async {
+    return _intakeBox.values
+        .where((intake) => intake.type == mealType)
+        .toList();
+  }
+
+  /// Gets all intake entries for a specific meal type in a date range
+  Future<List<IntakeDBO>> getAllIntakesByTypeAndDateRange(
+      IntakeTypeDBO mealType, DateTime startDate, DateTime endDate) async {
+    return _intakeBox.values
+        .where((intake) => 
+            intake.type == mealType &&
+            intake.dateTime.isAfter(startDate.subtract(const Duration(days: 1))) &&
+            intake.dateTime.isBefore(endDate.add(const Duration(days: 1))))
+        .toList();
+  }
 }

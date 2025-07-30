@@ -24,6 +24,13 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _chatBloc = locator<ChatBloc>();
     _chatBloc.add(const LoadChatEvent());
+    
+    // Ensure scroll to bottom when chat is first loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -110,6 +117,17 @@ class _ChatScreenState extends State<ChatScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message)),
             );
+          } else if (state is ChatLoaded && state.messages.isNotEmpty) {
+            // Auto-scroll to bottom when new messages are added
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0) {
+                _scrollController.animateTo(
+                  _scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
+            });
           }
         },
         builder: (context, state) {
@@ -255,7 +273,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
