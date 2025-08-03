@@ -78,26 +78,7 @@ class DayInfoWidget extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Card(
-                          elevation: 0.0,
-                          margin: const EdgeInsets.all(0.0),
-                          color: trackedDayEntity
-                              ?.getRatingDayTextBackgroundColor(context),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0, vertical: 8.0),
-                            child: Text(
-                              _getCaloriesTrackedDisplayString(trackedDay),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                      color: trackedDayEntity
-                                          ?.getRatingDayTextColor(context),
-                                      fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
+                        _buildCalorieCard(context, trackedDay),
                         const SizedBox(height: 4.0),
                         Text(_getMacroTrackedDisplayString(trackedDay),
                             maxLines: 2,
@@ -185,21 +166,74 @@ class DayInfoWidget extends StatelessWidget {
     );
   }
 
-  String _getCaloriesTrackedDisplayString(TrackedDayEntity trackedDay) {
-    int caloriesTracked;
-    if (trackedDay.caloriesTracked.isNegative) {
-      caloriesTracked = 0;
-    } else {
-      caloriesTracked = trackedDay.caloriesTracked.toInt();
+  Widget _buildCalorieCard(BuildContext context, TrackedDayEntity trackedDay) {
+    // Calculate calories dynamically from actual food entries
+    final allIntakes = [...breakfastIntake, ...lunchIntake, ...dinnerIntake, ...snackIntake];
+    final calculatedCalories = TrackedDayEntity.calculateCaloriesFromIntakes(allIntakes);
+    
+    // Hide the card if there are 0 calories
+    if (calculatedCalories <= 0) {
+      return const SizedBox();
     }
+    
+    final caloriesTracked = calculatedCalories.toInt();
+    final calorieGoal = trackedDay.calorieGoal.toInt();
+    
+    // Determine colors based on dynamic calorie calculation
+    final calculatedCaloriesForColor = TrackedDayEntity.calculateCaloriesFromIntakes(allIntakes);
+    final difference = trackedDay.calorieGoal - calculatedCaloriesForColor;
+    final isGoodEating = (trackedDay.calorieGoal < calculatedCaloriesForColor) 
+        ? difference.abs() < TrackedDayEntity.maxKcalDifferenceOverGoal
+        : difference < TrackedDayEntity.maxKcalDifferenceUnderGoal;
+    
+    final backgroundColor = isGoodEating 
+        ? Theme.of(context).colorScheme.secondaryContainer
+        : Theme.of(context).colorScheme.errorContainer;
+    final textColor = isGoodEating 
+        ? Theme.of(context).colorScheme.onSecondaryContainer
+        : Theme.of(context).colorScheme.onErrorContainer;
+    
+    return Card(
+      elevation: 0.0,
+      margin: const EdgeInsets.all(0.0),
+      color: backgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+        child: Text(
+          '$caloriesTracked/$calorieGoal kcal',
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
 
-    return '$caloriesTracked/${trackedDay.calorieGoal.toInt()} kcal';
+  String _getCaloriesTrackedDisplayString(TrackedDayEntity trackedDay) {
+    // Calculate calories dynamically from actual food entries
+    final allIntakes = [...breakfastIntake, ...lunchIntake, ...dinnerIntake, ...snackIntake];
+    final calculatedCalories = TrackedDayEntity.calculateCaloriesFromIntakes(allIntakes);
+    
+    final caloriesTracked = calculatedCalories.toInt();
+    final calorieGoal = trackedDay.calorieGoal.toInt();
+
+    return '$caloriesTracked/$calorieGoal kcal';
   }
 
   String _getMacroTrackedDisplayString(TrackedDayEntity trackedDay) {
-    final carbsTracked = trackedDay.carbsTracked?.floor().toString() ?? '?';
-    final fatTracked = trackedDay.fatTracked?.floor().toString() ?? '?';
-    final proteinTracked = trackedDay.proteinTracked?.floor().toString() ?? '?';
+    // Calculate macros dynamically from actual food entries
+    final allIntakes = [...breakfastIntake, ...lunchIntake, ...dinnerIntake, ...snackIntake];
+    
+    final calculatedCarbs = TrackedDayEntity.calculateCarbsFromIntakes(allIntakes);
+    final calculatedFat = TrackedDayEntity.calculateFatFromIntakes(allIntakes);
+    final calculatedProtein = TrackedDayEntity.calculateProteinFromIntakes(allIntakes);
+
+    final carbsTracked = calculatedCarbs.floor().toString();
+    final fatTracked = calculatedFat.floor().toString();
+    final proteinTracked = calculatedProtein.floor().toString();
 
     final carbsGoal = trackedDay.carbsGoal?.floor().toString() ?? '?';
     final fatGoal = trackedDay.fatGoal?.floor().toString() ?? '?';

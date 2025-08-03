@@ -119,9 +119,31 @@ class ChatHistoryCleared extends ChatState {}
 
 class ChatError extends ChatState {
   final String message;
+  final List<ChatMessageEntity> messages;
+  final String apiKey;
+  final String selectedModel;
+  final List<CustomModelEntity> customModels;
+  final CustomModelEntity? activeModel;
+  final bool showDebugMessages;
 
-  const ChatError(this.message);
+  const ChatError(
+    this.message, {
+    this.messages = const [],
+    this.apiKey = '',
+    this.selectedModel = '',
+    this.customModels = const [],
+    this.activeModel,
+    this.showDebugMessages = false,
+  });
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [
+        message,
+        messages,
+        apiKey,
+        selectedModel,
+        customModels,
+        activeModel,
+        showDebugMessages,
+      ];
 } 

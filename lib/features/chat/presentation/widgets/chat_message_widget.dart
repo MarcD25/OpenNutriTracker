@@ -138,7 +138,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 11,
-                color: Colors.grey.shade800,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),

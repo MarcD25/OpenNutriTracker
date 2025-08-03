@@ -153,12 +153,7 @@ class AIFoodEntryUsecase {
       );
     }
 
-    _addTrackedDayUsecase.addDayCaloriesTracked(day, intakeEntity.totalKcal);
-    _addTrackedDayUsecase.addDayMacrosTracked(
-      day,
-      carbsTracked: intakeEntity.totalCarbsGram,
-      fatTracked: intakeEntity.totalFatsGram,
-      proteinTracked: intakeEntity.totalProteinsGram,
-    );
+    // Note: Calories and macros are now calculated dynamically from food entries
+    // No need to update tracked day calories/macros since they're calculated on-demand
   }
 } 

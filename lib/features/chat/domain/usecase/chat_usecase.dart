@@ -141,6 +141,8 @@ class ChatUsecase {
     _log.info('Found ${functionCalls.length} function calls in AI response');
     _log.info('Raw AI response: ${response.substring(0, response.length > 500 ? 500 : response.length)}...');
     
+
+    
     // Execute function calls and get results
     List<FunctionCallResult> functionResults = [];
     if (functionCalls.isNotEmpty) {

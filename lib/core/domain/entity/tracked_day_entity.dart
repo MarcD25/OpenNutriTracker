@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:opennutritracker/core/data/dbo/tracked_day_dbo.dart';
+import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
 
 class TrackedDayEntity extends Equatable {
   static const maxKcalDifferenceOverGoal = 500;
@@ -46,6 +47,48 @@ class TrackedDayEntity extends Equatable {
       return Theme.of(context).colorScheme.primary;
     } else {
       return Theme.of(context).colorScheme.error;
+    }
+  }
+
+  /// Calculates calories dynamically from food entries
+  static double calculateCaloriesFromIntakes(List<IntakeEntity> intakes) {
+    return intakes.fold<double>(0, (sum, intake) => sum + (intake.totalKcal ?? 0));
+  }
+
+  /// Calculates carbs dynamically from food entries
+  static double calculateCarbsFromIntakes(List<IntakeEntity> intakes) {
+    return intakes.fold<double>(0, (sum, intake) => sum + (intake.totalCarbsGram ?? 0));
+  }
+
+  /// Calculates fat dynamically from food entries
+  static double calculateFatFromIntakes(List<IntakeEntity> intakes) {
+    return intakes.fold<double>(0, (sum, intake) => sum + (intake.totalFatsGram ?? 0));
+  }
+
+  /// Calculates protein dynamically from food entries
+  static double calculateProteinFromIntakes(List<IntakeEntity> intakes) {
+    return intakes.fold<double>(0, (sum, intake) => sum + (intake.totalProteinsGram ?? 0));
+  }
+
+  /// Calculates calendar day rating color based on dynamic calorie calculation
+  static Color getCalendarDayRatingColorFromIntakes(BuildContext context, double calorieGoal, List<IntakeEntity> intakes) {
+    final calculatedCalories = calculateCaloriesFromIntakes(intakes);
+    
+    if (_hasExceededMaxKcalDifferenceGoalStatic(calorieGoal, calculatedCalories)) {
+      return Theme.of(context).colorScheme.primary; // Green for good
+    } else {
+      return Theme.of(context).colorScheme.error; // Red for over/under eating
+    }
+  }
+
+  /// Static version of the rating calculation for use with dynamic calories
+  static bool _hasExceededMaxKcalDifferenceGoalStatic(double calorieGoal, double calculatedCalories) {
+    double difference = calorieGoal - calculatedCalories;
+
+    if (calorieGoal < calculatedCalories) {
+      return difference.abs() < maxKcalDifferenceOverGoal;
+    } else {
+      return difference < maxKcalDifferenceUnderGoal;
     }
   }
 

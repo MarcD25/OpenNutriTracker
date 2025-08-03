@@ -180,6 +180,21 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         
         _log.info('Starting message processing in BLoC...');
         
+        // Immediately add user message to show it right away
+        final userMessage = _chatUsecase.createUserMessage(event.message);
+        final messagesWithUser = [...currentState.messages, userMessage];
+        
+        // Emit state with user message immediately
+        emit(ChatLoaded(
+          messages: messagesWithUser,
+          apiKey: currentState.apiKey,
+          selectedModel: currentState.selectedModel,
+          customModels: currentState.customModels,
+          activeModel: currentState.activeModel,
+          showDebugMessages: _showDebugMessages,
+          isLoading: true,
+        ));
+        
         // Create a completer to track when processing is done
         final completer = Completer<void>();
         
@@ -189,7 +204,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           message: event.message,
           apiKey: currentState.apiKey,
           selectedModel: currentState.selectedModel,
-          chatHistory: currentState.messages,
+          chatHistory: currentState.messages, // Use original history, not with user message
           onUpdate: (messages) {
             // Update the UI with new messages
             // Only emit if the BLoC is still active and not completed
@@ -201,7 +216,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                 customModels: currentState.customModels,
                 activeModel: currentState.activeModel,
                 showDebugMessages: _showDebugMessages,
-                isLoading: messages.length > currentState.messages.length,
+                isLoading: false,
               ));
               _log.info('BLoC emitted updated state');
             } else {
@@ -211,7 +226,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           onError: (error) {
             _log.severe('Error sending message: $error');
             if (!isClosed && !emit.isDone) {
-              emit(ChatError(error));
+              emit(ChatError(
+                error,
+                messages: currentState.messages,
+                apiKey: currentState.apiKey,
+                selectedModel: currentState.selectedModel,
+                customModels: currentState.customModels,
+                activeModel: currentState.activeModel,
+                showDebugMessages: _showDebugMessages,
+              ));
             }
             // Only complete if not already completed
             if (!completer.isCompleted) {
@@ -233,13 +256,24 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     });
 
     on<ClearChatHistoryEvent>((event, emit) async {
-      try {
-        await _chatUsecase.clearChatHistory();
-        emit(ChatHistoryCleared());
-        add(LoadChatEvent());
-      } catch (e) {
-        _log.severe('Error clearing chat history: $e');
-        emit(ChatError('Failed to clear chat history'));
+      if (state is ChatLoaded) {
+        final currentState = state as ChatLoaded;
+        try {
+          await _chatUsecase.clearChatHistory();
+          emit(ChatHistoryCleared());
+          add(LoadChatEvent());
+        } catch (e) {
+          _log.severe('Error clearing chat history: $e');
+          emit(ChatError(
+            'Failed to clear chat history',
+            messages: currentState.messages,
+            apiKey: currentState.apiKey,
+            selectedModel: currentState.selectedModel,
+            customModels: currentState.customModels,
+            activeModel: currentState.activeModel,
+            showDebugMessages: _showDebugMessages,
+          ));
+        }
       }
     });
 
@@ -262,7 +296,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           ));
         } catch (e) {
           _log.severe('Error deleting message: $e');
-          emit(ChatError('Failed to delete message'));
+          emit(ChatError(
+            'Failed to delete message',
+            messages: currentState.messages,
+            apiKey: currentState.apiKey,
+            selectedModel: currentState.selectedModel,
+            customModels: currentState.customModels,
+            activeModel: currentState.activeModel,
+            showDebugMessages: _showDebugMessages,
+          ));
         }
       }
     });

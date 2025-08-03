@@ -5,6 +5,7 @@ import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart'
 import 'package:opennutritracker/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:opennutritracker/features/chat/presentation/widgets/chat_message_widget.dart';
 import 'package:opennutritracker/features/chat/presentation/widgets/chat_settings_dialog.dart';
+import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
 import 'package:opennutritracker/generated/l10n.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -164,6 +165,8 @@ class _ChatScreenState extends State<ChatScreen> {
             return _buildApiKeySetup();
           } else if (state is ChatLoaded) {
             return _buildChatInterface(state);
+          } else if (state is ChatError) {
+            return _buildChatInterfaceWithError(state);
           } else {
             return const Center(child: Text('Something went wrong'));
           }
@@ -246,6 +249,70 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+          _buildMessageInput(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatInterfaceWithError(ChatError state) {
+    return SafeArea(
+      child: Column(
+        children: [
+          // Error banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: Colors.red.shade100,
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    state.message,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Retry the last message
+                    if (state.messages.isNotEmpty) {
+                      final lastMessage = state.messages.last;
+                      if (lastMessage.type == ChatMessageType.user) {
+                        _chatBloc.add(SendMessageEvent(lastMessage.content));
+                      }
+                    }
+                  },
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              itemCount: state.messages.length,
+              itemBuilder: (context, index) {
+                final message = state.messages[index];
+                return ChatMessageWidget(
+                  message: message,
+                  onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
+                  showDebugMessages: state.showDebugMessages,
+                );
+              },
+            ),
+          ),
           _buildMessageInput(),
         ],
       ),

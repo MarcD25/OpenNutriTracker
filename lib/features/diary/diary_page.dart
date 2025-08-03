@@ -59,7 +59,7 @@ class _DiaryPageState extends State<DiaryPage> with WidgetsBindingObserver {
           return _getLoadingContent();
         } else if (state is DiaryLoadedState) {
           return _getLoadedContent(
-              context, state.trackedDayMap, state.usesImperialUnits);
+              context, state.trackedDayMap, state.usesImperialUnits, state.intakeDataMap);
         }
         return const SizedBox();
       },
@@ -79,11 +79,12 @@ class _DiaryPageState extends State<DiaryPage> with WidgetsBindingObserver {
       const Center(child: CircularProgressIndicator());
 
   Widget _getLoadedContent(BuildContext context,
-      Map<String, TrackedDayEntity> trackedDaysMap, bool usesImperialUnits) {
+      Map<String, TrackedDayEntity> trackedDaysMap, bool usesImperialUnits, Map<String, List<IntakeEntity>> intakeDataMap) {
     return ListView(
       children: [
         DiaryTableCalendar(
           trackedDaysMap: trackedDaysMap,
+          intakeDataMap: intakeDataMap,
           onDateSelected: _onDateSelected,
           calendarDurationDays: _calendarDurationDays,
           currentDate: _currentDate,
