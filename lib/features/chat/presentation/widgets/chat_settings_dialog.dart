@@ -410,7 +410,7 @@ class _ChatSettingsDialogState extends State<ChatSettingsDialog> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _chatBloc.add(const RemoveApiKeyEvent());
+              _chatBloc.add(RemoveApiKeyEvent());
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(S.of(context).chatApiKeyRemove),

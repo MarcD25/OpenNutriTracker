@@ -7,9 +7,7 @@ abstract class ChatEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadChatEvent extends ChatEvent {
-  const LoadChatEvent();
-}
+class LoadChatEvent extends ChatEvent {}
 
 class SaveApiKeyEvent extends ChatEvent {
   final String apiKey;
@@ -20,13 +18,9 @@ class SaveApiKeyEvent extends ChatEvent {
   List<Object?> get props => [apiKey];
 }
 
-class RemoveApiKeyEvent extends ChatEvent {
-  const RemoveApiKeyEvent();
-}
+class RemoveApiKeyEvent extends ChatEvent {}
 
-class ViewApiKeyEvent extends ChatEvent {
-  const ViewApiKeyEvent();
-}
+class ViewApiKeyEvent extends ChatEvent {}
 
 class ChangeApiKeyEvent extends ChatEvent {
   final String newApiKey;
@@ -65,9 +59,7 @@ class SetActiveModelEvent extends ChatEvent {
   List<Object?> get props => [identifier];
 }
 
-class LoadCustomModelsEvent extends ChatEvent {
-  const LoadCustomModelsEvent();
-}
+class LoadCustomModelsEvent extends ChatEvent {}
 
 class SendMessageEvent extends ChatEvent {
   final String message;
@@ -78,9 +70,7 @@ class SendMessageEvent extends ChatEvent {
   List<Object?> get props => [message];
 }
 
-class ClearChatHistoryEvent extends ChatEvent {
-  const ClearChatHistoryEvent();
-}
+class ClearChatHistoryEvent extends ChatEvent {}
 
 class DeleteMessageEvent extends ChatEvent {
   final String messageId;
@@ -89,4 +79,6 @@ class DeleteMessageEvent extends ChatEvent {
 
   @override
   List<Object?> get props => [messageId];
-} 
+}
+
+class ToggleDebugModeEvent extends ChatEvent {} 

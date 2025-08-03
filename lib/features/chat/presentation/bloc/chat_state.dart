@@ -20,6 +20,7 @@ class ChatLoaded extends ChatState {
   final List<CustomModelEntity> customModels;
   final CustomModelEntity? activeModel;
   final bool isLoading;
+  final bool showDebugMessages;
 
   const ChatLoaded({
     required this.messages,
@@ -28,6 +29,7 @@ class ChatLoaded extends ChatState {
     required this.customModels,
     this.activeModel,
     this.isLoading = false,
+    this.showDebugMessages = false,
   });
 
   @override
@@ -38,6 +40,7 @@ class ChatLoaded extends ChatState {
         customModels,
         activeModel,
         isLoading,
+        showDebugMessages,
       ];
 
   ChatLoaded copyWith({
@@ -47,6 +50,7 @@ class ChatLoaded extends ChatState {
     List<CustomModelEntity>? customModels,
     CustomModelEntity? activeModel,
     bool? isLoading,
+    bool? showDebugMessages,
   }) {
     return ChatLoaded(
       messages: messages ?? this.messages,
@@ -55,6 +59,7 @@ class ChatLoaded extends ChatState {
       customModels: customModels ?? this.customModels,
       activeModel: activeModel ?? this.activeModel,
       isLoading: isLoading ?? this.isLoading,
+      showDebugMessages: showDebugMessages ?? this.showDebugMessages,
     );
   }
 }

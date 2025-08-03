@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:opennutritracker/features/chat/data/data_source/chat_data_source.dart';
 import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
 import 'package:opennutritracker/features/chat/domain/entity/custom_model_entity.dart';
+import 'package:opennutritracker/features/chat/domain/entity/function_call_entity.dart';
+import 'package:opennutritracker/features/chat/domain/service/function_call_parser.dart';
+import 'package:opennutritracker/features/chat/domain/service/function_execution_service.dart';
 import 'package:opennutritracker/core/utils/id_generator.dart';
 import 'package:opennutritracker/core/domain/entity/user_gender_entity.dart';
 import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
@@ -18,9 +24,20 @@ class ChatUsecase {
   final AIFoodEntryUsecase _aiFoodEntryUsecase;
   final ChatDiaryDataUsecase _chatDiaryDataUsecase;
   final BulkIntakeOperationsUsecase _bulkIntakeOperationsUsecase;
+  final FunctionExecutionService _functionExecutionService;
   final Logger _log = Logger('ChatUsecase');
 
-  ChatUsecase(this._chatDataSource, this._getUserUsecase, this._aiFoodEntryUsecase, this._chatDiaryDataUsecase, this._bulkIntakeOperationsUsecase);
+  ChatUsecase(
+    this._chatDataSource,
+    this._getUserUsecase,
+    this._aiFoodEntryUsecase,
+    this._chatDiaryDataUsecase,
+    this._bulkIntakeOperationsUsecase,
+  ) : _functionExecutionService = FunctionExecutionService(
+         _aiFoodEntryUsecase,
+         _bulkIntakeOperationsUsecase,
+         _chatDiaryDataUsecase,
+       );
 
   // API Key Management
   Future<String?> getApiKey() async {
@@ -102,90 +119,128 @@ class ChatUsecase {
     await _chatDataSource.clearAllChatData();
   }
 
-  // Message Handling
-  Future<ChatMessageEntity> sendMessage(String message, String apiKey, String model, {List<ChatMessageEntity>? chatHistory}) async {
+  // Message Handling with JSON-based Function Calling
+  Future<List<ChatMessageEntity>> sendMessage(String message, String apiKey, String model, {List<ChatMessageEntity>? chatHistory}) async {
     final userInfo = await getUserInfoForChat();
     final response = await _chatDataSource.sendMessage(message, apiKey, model, userInfo: userInfo, chatHistory: chatHistory);
     
-    // Parse AI response for food entries and add them to diary
-    await _parseAndAddFoodEntries(response, message);
+    final List<ChatMessageEntity> messages = [];
     
-    final assistantMessage = ChatMessageEntity(
+    // Create user message
+    final userMessage = ChatMessageEntity(
       id: IdGenerator.getUniqueID(),
-      content: response,
-      type: ChatMessageType.assistant,
+      content: message,
+      type: ChatMessageType.user,
       timestamp: DateTime.now(),
+      isVisible: true,
     );
-
-    return assistantMessage;
+    messages.add(userMessage);
+    
+    // Parse function calls from AI response
+    final functionCalls = FunctionCallParser.parseFunctionCalls(response);
+    _log.info('Found ${functionCalls.length} function calls in AI response');
+    _log.info('Raw AI response: ${response.substring(0, response.length > 500 ? 500 : response.length)}...');
+    
+    // Execute function calls and get results
+    List<FunctionCallResult> functionResults = [];
+    if (functionCalls.isNotEmpty) {
+      functionResults = await _functionExecutionService.executeFunctionCalls(functionCalls);
+      
+      // Create function call messages for debugging
+      for (int i = 0; i < functionCalls.length; i++) {
+        final functionCall = functionCalls[i];
+        final result = functionResults[i];
+        
+        final functionMessage = ChatMessageEntity(
+          id: IdGenerator.getUniqueID(),
+          content: _formatFunctionCallForDisplay(functionCall, result),
+          type: ChatMessageType.function_call,
+          timestamp: DateTime.now(),
+          isVisible: true, // Always visible for debugging
+          functionData: {
+            'function': functionCall.function,
+            'parameters': functionCall.parameters,
+            'success': result.success,
+            'error': result.error,
+            'data': result.data,
+          },
+        );
+        messages.add(functionMessage);
+      }
+      
+      // If we have function results, send them back to AI for a final response
+      if (functionResults.any((result) => result.success)) {
+        _log.info('Sending function results back to AI for final response');
+        final finalResponse = await _sendFunctionResultsToAI(
+          message, 
+          apiKey, 
+          model, 
+          functionCalls, 
+          functionResults, 
+          userInfo: userInfo, 
+          chatHistory: chatHistory
+        );
+        
+        // Extract visible content from final AI response
+        final visibleContent = FunctionCallParser.extractVisibleContent(finalResponse);
+        
+        // Create assistant message with final content
+        final assistantMessage = ChatMessageEntity(
+          id: IdGenerator.getUniqueID(),
+          content: visibleContent,
+          type: ChatMessageType.assistant,
+          timestamp: DateTime.now(),
+          isVisible: true,
+        );
+        messages.add(assistantMessage);
+      } else {
+        // If no successful function calls, use original response
+        final visibleContent = FunctionCallParser.extractVisibleContent(response);
+        final assistantMessage = ChatMessageEntity(
+          id: IdGenerator.getUniqueID(),
+          content: visibleContent,
+          type: ChatMessageType.assistant,
+          timestamp: DateTime.now(),
+          isVisible: true,
+        );
+        messages.add(assistantMessage);
+      }
+    } else {
+      // No function calls, use original response
+      final visibleContent = FunctionCallParser.extractVisibleContent(response);
+      final assistantMessage = ChatMessageEntity(
+        id: IdGenerator.getUniqueID(),
+        content: visibleContent,
+        type: ChatMessageType.assistant,
+        timestamp: DateTime.now(),
+        isVisible: true,
+      );
+      messages.add(assistantMessage);
+    }
+    
+    return messages;
   }
 
-  /// Parses AI response for food entry information and adds to diary
-  Future<void> _parseAndAddFoodEntries(String aiResponse, String userMessage) async {
-    try {
-      _log.info('Parsing AI response for food entries...');
-      _log.info('AI Response: ${aiResponse.substring(0, aiResponse.length > 200 ? 200 : aiResponse.length)}...');
-      
-      // Look for food entry patterns in AI response
-      final foodEntryPattern = RegExp(
-        r'Food Name:\s*([^\n]+)\s*\n'
-        r'Calories:\s*([^\n]+)\s*\n'
-        r'Protein:\s*([^\n]+)\s*\n'
-        r'Carbs:\s*([^\n]+)\s*\n'
-        r'Fat:\s*([^\n]+)\s*\n'
-        r'Amount:\s*([^\n]+)\s*\n'
-        r'Unit:\s*([^\n]+)\s*\n'
-        r'Meal Type:\s*([^\n]+)\s*\n'
-        r'Date:\s*([^\n]+)',
-        caseSensitive: false,
-        multiLine: true,
-      );
-
-      final matches = foodEntryPattern.allMatches(aiResponse);
-      _log.info('Found ${matches.length} food entry matches in AI response');
-      
-      for (final match in matches) {
-        try {
-          final foodName = match.group(1)?.trim() ?? '';
-          final calories = double.tryParse(match.group(2)?.trim() ?? '0') ?? 0.0;
-          final protein = double.tryParse(match.group(3)?.trim() ?? '0') ?? 0.0;
-          final carbs = double.tryParse(match.group(4)?.trim() ?? '0') ?? 0.0;
-          final fat = double.tryParse(match.group(5)?.trim() ?? '0') ?? 0.0;
-          final amount = double.tryParse(match.group(6)?.trim() ?? '0') ?? 0.0;
-          final unit = match.group(7)?.trim() ?? 'g';
-          final mealType = match.group(8)?.trim() ?? 'snack';
-          final dateString = match.group(9)?.trim() ?? 'today';
-          
-          _log.info('Parsed food entry: $foodName - ${calories}cal, ${protein}g protein, ${carbs}g carbs, ${fat}g fat, $amount $unit, $mealType, $dateString');
-          
-          // Parse the date and handle bulk operations
-          final dates = parseDateRange(dateString);
-          
-          // Add the food entry for each date
-          for (final targetDate in dates) {
-            await addFoodEntry(
-              foodName: foodName,
-              calories: calories,
-              protein: protein,
-              carbs: carbs,
-              fat: fat,
-              amount: amount,
-              unit: unit,
-              mealType: mealType,
-              date: targetDate,
-            );
-          }
-          
-          _log.info('Successfully added food entry: $foodName');
-        } catch (e) {
-          // Log error but continue processing other entries
-          _log.severe('Error adding food entry: $e');
-        }
-      }
-    } catch (e) {
-      // Log error but don't fail the entire message
-      _log.severe('Error parsing food entries: $e');
+  /// Formats function call for display in debug mode
+  String _formatFunctionCallForDisplay(FunctionCallEntity functionCall, FunctionCallResult result) {
+    final buffer = StringBuffer();
+    buffer.writeln('**Function Call:** ${functionCall.function}');
+    buffer.writeln('**Status:** ${result.success ? '✅ Success' : '❌ Failed'}');
+    
+    if (result.error != null) {
+      buffer.writeln('**Error:** ${result.error}');
     }
+    
+    if (result.data != null) {
+      buffer.writeln('**Result:** ${result.data}');
+    }
+    
+    buffer.writeln('**Parameters:**');
+    functionCall.parameters.forEach((key, value) {
+      buffer.writeln('- $key: $value');
+    });
+    
+    return buffer.toString();
   }
 
   ChatMessageEntity createUserMessage(String content) {
@@ -194,7 +249,141 @@ class ChatUsecase {
       content: content,
       type: ChatMessageType.user,
       timestamp: DateTime.now(),
+      isVisible: true,
     );
+  }
+
+  /// Sends function results back to AI for a final response
+  Future<String> _sendFunctionResultsToAI(
+    String originalMessage,
+    String apiKey,
+    String model,
+    List<FunctionCallEntity> functionCalls,
+    List<FunctionCallResult> functionResults,
+    {String? userInfo, List<ChatMessageEntity>? chatHistory}
+  ) async {
+    try {
+      // Build messages array with system message, chat history, original message, and function results
+      final messages = [
+        {
+          'role': 'system',
+          'content': '''You are a helpful nutrition assistant for the OpenNutriTracker app.
+
+**IMPORTANT: Function calls have been executed and results are available below.**
+
+Your task is to provide a helpful response to the user based on the function call results. 
+Do NOT make any new function calls - just analyze the results and respond appropriately.
+
+**Function Call Results:**
+${_formatFunctionResultsForAI(functionCalls, functionResults)}
+
+**Guidelines:**
+1. If the function calls were successful, provide a helpful response based on the data
+2. If there were errors, explain what went wrong and suggest alternatives
+3. Be concise but informative
+4. Use proper Markdown formatting
+5. Avoid using emojis as they don't display correctly in the app
+6. If the user asked to read their diary, summarize what you found
+7. If the user asked to add/update/delete entries, confirm what was done
+
+${userInfo != null ? '''
+**User Profile Information:**
+$userInfo
+
+Use this information to provide personalized nutrition advice and recommendations.
+''' : ''}'''
+        }
+      ];
+
+      // Add chat history messages
+      if (chatHistory != null) {
+        for (final msg in chatHistory) {
+          messages.add({
+            'role': msg.type == ChatMessageType.user ? 'user' : 'assistant',
+            'content': msg.content,
+          });
+        }
+      }
+
+      // Add the original user message
+      messages.add({
+        'role': 'user',
+        'content': originalMessage,
+      });
+
+      final requestBody = {
+        'model': model,
+        'messages': messages,
+        'max_tokens': 10000,
+        'temperature': 0.7,
+      };
+      
+      _log.info('Sending function results to AI for final response');
+      
+             final response = await http.post(
+         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+          'HTTP-Referer': 'https://opennutritracker.app',
+          'X-Title': 'OpenNutriTracker',
+          'User-Agent': 'OpenNutriTracker/1.0',
+        },
+        body: json.encode(requestBody),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception('Request timed out. Please try again.');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseBody = utf8.decode(response.bodyBytes);
+        final data = json.decode(responseBody);
+        final content = data['choices'][0]['message']['content'];
+        _log.info('Received final AI response with ${content.length} characters');
+        return content;
+      } else {
+        _log.severe('OpenRouter API error: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to get final response from AI assistant');
+      }
+    } catch (e) {
+      _log.severe('Error sending function results to AI: $e');
+      throw Exception('Failed to process function results');
+    }
+  }
+
+  /// Formats function results for AI consumption
+  String _formatFunctionResultsForAI(List<FunctionCallEntity> functionCalls, List<FunctionCallResult> functionResults) {
+    final buffer = StringBuffer();
+    
+    for (int i = 0; i < functionCalls.length; i++) {
+      final functionCall = functionCalls[i];
+      final result = functionResults[i];
+      
+      buffer.writeln('**Function:** ${functionCall.function}');
+      buffer.writeln('**Status:** ${result.success ? 'SUCCESS' : 'FAILED'}');
+      
+      if (result.error != null) {
+        buffer.writeln('**Error:** ${result.error}');
+      }
+      
+      if (result.data != null) {
+        buffer.writeln('**Result:**');
+        buffer.writeln('```json');
+        buffer.writeln(json.encode(result.data));
+        buffer.writeln('```');
+      }
+      
+      buffer.writeln('**Parameters:**');
+      functionCall.parameters.forEach((key, value) {
+        buffer.writeln('- $key: $value');
+      });
+      
+      buffer.writeln('---');
+    }
+    
+    return buffer.toString();
   }
 
   // User Information for Chat Context
@@ -232,7 +421,7 @@ $todayDiaryData''';
     }
   }
 
-  // AI Food Entry Methods
+  // AI Food Entry Methods (kept for backward compatibility)
   Future<void> addFoodEntry({
     required String foodName,
     required double calories,

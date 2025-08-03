@@ -53,47 +53,29 @@ class ChatProcessingService {
       _log.info('Selected model: $selectedModel');
       _log.info('Chat history length: ${chatHistory.length}');
       
-      // Create user message
-      final userMessage = _chatUsecase.createUserMessage(message);
-      final updatedMessages = [...chatHistory, userMessage];
-      
-      _log.info('Created user message with ID: ${userMessage.id}');
-      
-      // Save initial state
-      await _chatUsecase.saveChatHistory(updatedMessages);
-      _log.info('Saved initial chat history');
-      
-      // Try to update UI, but don't let it fail the processing
-      try {
-        onUpdate(updatedMessages);
-        _log.info('UI updated with initial messages');
-      } catch (e) {
-        _log.warning('Failed to update UI with initial messages: $e');
-        // Continue processing even if UI update fails
-      }
-
       // Process with AI - this is the critical part that must continue
       _log.info('Sending message to AI...');
-      final assistantMessage = await _chatUsecase.sendMessage(
+      final newMessages = await _chatUsecase.sendMessage(
         message,
         apiKey,
         selectedModel,
         chatHistory: chatHistory,
       );
 
-      _log.info('Received AI response with ID: ${assistantMessage.id}');
-      _log.info('AI response content length: ${assistantMessage.content.length}');
-
+      _log.info('Received ${newMessages.length} messages from AI processing');
+      
+      // Combine existing history with new messages
+      final updatedMessages = [...chatHistory, ...newMessages];
+      
       // Save final state
-      final finalMessages = [...updatedMessages, assistantMessage];
-      await _chatUsecase.saveChatHistory(finalMessages);
-      _log.info('Saved final chat history');
+      await _chatUsecase.saveChatHistory(updatedMessages);
+      _log.info('Saved updated chat history with ${updatedMessages.length} messages');
       
       _log.info('Message processing completed successfully');
       
       // Try to update UI, but don't let it fail the processing
       try {
-        onUpdate(finalMessages);
+        onUpdate(updatedMessages);
         _log.info('UI updated with final messages');
       } catch (e) {
         _log.warning('Failed to update UI with final messages: $e');

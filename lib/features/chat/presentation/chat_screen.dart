@@ -23,7 +23,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _chatBloc = locator<ChatBloc>();
-    _chatBloc.add(const LoadChatEvent());
+    _chatBloc.add(LoadChatEvent());
     
     // Ensure scroll to bottom when chat is first loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -50,28 +50,44 @@ class _ChatScreenState extends State<ChatScreen> {
             bloc: _chatBloc,
             builder: (context, state) {
               if (state is ChatLoaded && state.messages.isNotEmpty) {
-                return PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'clear') {
-                      _showClearHistoryDialog();
-                    } else if (value == 'settings') {
-                      _showChatSettings();
-                    } else if (value == 'debug') {
-                      _clearAllData();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'settings',
-                      child: Text(S.of(context).chatSettingsLabel),
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Debug toggle button
+                    IconButton(
+                      onPressed: () {
+                        _chatBloc.add(ToggleDebugModeEvent());
+                      },
+                      icon: Icon(
+                        state.showDebugMessages ? Icons.bug_report : Icons.bug_report_outlined,
+                        color: state.showDebugMessages ? Colors.orange : null,
+                      ),
+                      tooltip: 'Toggle Debug Messages',
                     ),
-                    PopupMenuItem(
-                      value: 'clear',
-                      child: Text(S.of(context).chatClearHistory),
-                    ),
-                    const PopupMenuItem(
-                      value: 'debug',
-                      child: Text('Debug: Clear All Data'),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'clear') {
+                          _showClearHistoryDialog();
+                        } else if (value == 'settings') {
+                          _showChatSettings();
+                        } else if (value == 'debug') {
+                          _clearAllData();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'settings',
+                          child: Text(S.of(context).chatSettingsLabel),
+                        ),
+                        PopupMenuItem(
+                          value: 'clear',
+                          child: Text(S.of(context).chatClearHistory),
+                        ),
+                        PopupMenuItem(
+                          value: 'debug',
+                          child: Text('Debug: Clear All Data'),
+                        ),
+                      ],
                     ),
                   ],
                 );
@@ -79,6 +95,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Debug toggle button
+                    IconButton(
+                      onPressed: () {
+                        _chatBloc.add(ToggleDebugModeEvent());
+                      },
+                      icon: Icon(
+                        state.showDebugMessages ? Icons.bug_report : Icons.bug_report_outlined,
+                        color: state.showDebugMessages ? Colors.orange : null,
+                      ),
+                      tooltip: 'Toggle Debug Messages',
+                    ),
                     IconButton(
                       onPressed: _showChatSettings,
                       icon: const Icon(Icons.settings),
@@ -99,16 +126,16 @@ class _ChatScreenState extends State<ChatScreen> {
       body: BlocConsumer<ChatBloc, ChatState>(
         bloc: _chatBloc,
         listener: (context, state) {
-          if (state is ChatApiKeySaved || state is ChatApiKeyChanged) {
+          if (state is ChatApiKeySaved) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(S.of(context).chatApiKeySuccess)),
             );
-            _chatBloc.add(const LoadChatEvent());
+            _chatBloc.add(LoadChatEvent());
           } else if (state is ChatApiKeyRemoved) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(S.of(context).chatApiKeyRemoved)),
             );
-            _chatBloc.add(const LoadChatEvent());
+            _chatBloc.add(LoadChatEvent());
           } else if (state is ChatHistoryCleared) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(S.of(context).chatClearHistorySuccess)),
@@ -199,6 +226,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ChatMessageWidget(
                   message: message,
                   onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
+                  showDebugMessages: state.showDebugMessages,
                 );
               },
             ),
@@ -325,7 +353,7 @@ class _ChatScreenState extends State<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _chatBloc.add(const ClearChatHistoryEvent());
+              _chatBloc.add(ClearChatHistoryEvent());
             },
             child: Text(S.of(context).buttonYesLabel),
           ),
@@ -350,7 +378,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Navigator.of(context).pop();
               // Clear all data and reload
               locator<ChatUsecase>().clearAllChatData();
-              _chatBloc.add(const LoadChatEvent());
+              _chatBloc.add(LoadChatEvent());
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Clear All'),

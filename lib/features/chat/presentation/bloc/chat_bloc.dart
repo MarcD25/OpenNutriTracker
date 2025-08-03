@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logging/logging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
 import 'package:opennutritracker/features/chat/domain/entity/custom_model_entity.dart';
 import 'package:opennutritracker/features/chat/domain/service/chat_processing_service.dart';
@@ -15,6 +16,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final ChatUsecase _chatUsecase;
   final ChatProcessingService _processingService = ChatProcessingService();
   bool _isProcessingMessage = false;
+  
+  // Debug mode persistence
+  static const String _debugModeKey = 'chat_debug_mode';
+  bool _showDebugMessages = false;
 
   ChatBloc(this._chatUsecase) : super(ChatInitial()) {
     on<LoadChatEvent>((event, emit) async {
@@ -26,6 +31,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         final customModels = await _chatUsecase.getCustomModels();
         final activeModel = await _chatUsecase.getActiveModel();
         
+        // Load debug mode setting
+        await _loadDebugMode();
+        
         if (apiKey == null || apiKey.isEmpty) {
           emit(ChatNoApiKey());
         } else {
@@ -35,6 +43,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             selectedModel: selectedModel,
             customModels: customModels,
             activeModel: activeModel,
+            showDebugMessages: _showDebugMessages,
           ));
         }
       } catch (e) {
@@ -142,6 +151,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       }
     });
 
+    on<ToggleDebugModeEvent>((event, emit) async {
+      try {
+        _showDebugMessages = !_showDebugMessages;
+        await _saveDebugMode();
+        
+        if (state is ChatLoaded) {
+          final currentState = state as ChatLoaded;
+          emit(ChatLoaded(
+            messages: currentState.messages,
+            apiKey: currentState.apiKey,
+            selectedModel: currentState.selectedModel,
+            customModels: currentState.customModels,
+            activeModel: currentState.activeModel,
+            showDebugMessages: _showDebugMessages,
+          ));
+        }
+      } catch (e) {
+        _log.severe('Error toggling debug mode: $e');
+        emit(ChatError('Failed to toggle debug mode'));
+      }
+    });
+
     on<SendMessageEvent>((event, emit) async {
       if (state is ChatLoaded && !_isProcessingMessage) {
         _isProcessingMessage = true;
@@ -169,6 +200,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                 selectedModel: currentState.selectedModel,
                 customModels: currentState.customModels,
                 activeModel: currentState.activeModel,
+                showDebugMessages: _showDebugMessages,
                 isLoading: messages.length > currentState.messages.length,
               ));
               _log.info('BLoC emitted updated state');
@@ -226,6 +258,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             selectedModel: currentState.selectedModel,
             customModels: currentState.customModels,
             activeModel: currentState.activeModel,
+            showDebugMessages: _showDebugMessages,
           ));
         } catch (e) {
           _log.severe('Error deleting message: $e');
@@ -233,5 +266,27 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       }
     });
+  }
+
+  // Debug mode persistence methods
+  Future<void> _loadDebugMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _showDebugMessages = prefs.getBool(_debugModeKey) ?? false;
+      _log.info('Loaded debug mode setting: $_showDebugMessages');
+    } catch (e) {
+      _log.warning('Error loading debug mode setting: $e');
+      _showDebugMessages = false;
+    }
+  }
+
+  Future<void> _saveDebugMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_debugModeKey, _showDebugMessages);
+      _log.info('Saved debug mode setting: $_showDebugMessages');
+    } catch (e) {
+      _log.warning('Error saving debug mode setting: $e');
+    }
   }
 } 
