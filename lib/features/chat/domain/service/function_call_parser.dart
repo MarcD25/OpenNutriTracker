@@ -14,17 +14,26 @@ class FunctionCallParser {
       _log.info('Parsing function calls from response...');
       
       // Parse JSON blocks in the response
-      final jsonPattern = RegExp(r'```json\s*(\{.*?\})\s*```', dotAll: true);
-      final matches = jsonPattern.allMatches(response);
+      final fencedJsonPattern = RegExp(r'```json\s*(\{[\s\S]*?\})\s*```', dotAll: true);
+      final fencedAnyPattern = RegExp(r'```\s*(\{[\s\S]*?\})\s*```', dotAll: true);
+      final rawFunctionPattern = RegExp(r'(\{[\s\S]*?\})', dotAll: true);
+      final seen = <String>{};
+      final matches = <RegExpMatch>[];
+      matches.addAll(fencedJsonPattern.allMatches(response));
+      matches.addAll(fencedAnyPattern.allMatches(response));
       
       _log.info('Found ${matches.length} JSON blocks in response');
       
       for (final match in matches) {
         try {
           final jsonString = match.group(1)!;
+          if (seen.contains(jsonString)) continue;
+          seen.add(jsonString);
           _log.fine('Parsing JSON block: ${jsonString.substring(0, jsonString.length > 100 ? 100 : jsonString.length)}...');
           
-          final jsonData = json.decode(jsonString);
+          final dynamic decoded = json.decode(jsonString);
+          if (decoded is! Map) continue;
+          final Map<String, dynamic> jsonData = decoded.map((k, v) => MapEntry(k.toString(), v));
           
           if (jsonData['type'] == 'function_call') {
             final functionCall = FunctionCallEntity.fromJson(jsonData);
@@ -36,6 +45,24 @@ class FunctionCallParser {
         } catch (e) {
           _log.warning('Error parsing JSON block: $e');
           // Continue parsing other blocks
+        }
+      }
+
+      // As a fallback, try raw JSON objects in the text (no fences)
+      for (final match in rawFunctionPattern.allMatches(response)) {
+        try {
+          final candidate = match.group(1)!;
+          if (candidate.length > 12000) continue; // skip giant blocks
+          if (seen.contains(candidate)) continue;
+          final dynamic decoded = json.decode(candidate);
+          if (decoded is Map && decoded['type'] == 'function_call') {
+            final Map<String, dynamic> jsonData = decoded.map((k, v) => MapEntry(k.toString(), v));
+            final functionCall = FunctionCallEntity.fromJson(jsonData);
+            functionCalls.add(functionCall);
+            seen.add(candidate);
+          }
+        } catch (_) {
+          // ignore
         }
       }
       
@@ -51,8 +78,12 @@ class FunctionCallParser {
   static String extractVisibleContent(String response) {
     try {
       // Remove JSON blocks and clean up extra whitespace
-      final cleanedResponse = response.replaceAll(
-        RegExp(r'```json\s*\{.*?\}\s*```', dotAll: true),
+      var cleanedResponse = response.replaceAll(
+        RegExp(r'```json\s*\{[\s\S]*?\}\s*```', dotAll: true),
+        '',
+      );
+      cleanedResponse = cleanedResponse.replaceAll(
+        RegExp(r'```\s*\{[\s\S]*?\}\s*```', dotAll: true),
         '',
       ).trim();
       

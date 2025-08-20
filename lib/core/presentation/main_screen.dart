@@ -8,6 +8,10 @@ import 'package:opennutritracker/core/presentation/widgets/main_appbar.dart';
 import 'package:opennutritracker/features/profile/profile_page.dart';
 import 'package:opennutritracker/features/chat/presentation/chat_screen.dart';
 import 'package:opennutritracker/generated/l10n.dart';
+import 'package:opennutritracker/core/utils/locator.dart';
+import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart';
+import 'package:opennutritracker/features/diary/presentation/bloc/diary_bloc.dart';
+import 'package:opennutritracker/features/diary/presentation/bloc/calendar_day_bloc.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -90,6 +94,22 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedPageIndex = selectedIndex;
     });
+
+    // Trigger an immediate refresh when entering Home or Diary
+    if (selectedIndex == 0) {
+      // Home
+      try {
+        locator<HomeBloc>().add(const LoadItemsEvent());
+      } catch (_) {}
+    } else if (selectedIndex == 1) {
+      // Diary
+      try {
+        locator<DiaryBloc>().add(const LoadDiaryYearEvent());
+      } catch (_) {}
+      try {
+        locator<CalendarDayBloc>().add(RefreshCalendarDayEvent());
+      } catch (_) {}
+    }
   }
 
   void _onFabPressed(BuildContext context) async {

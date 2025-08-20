@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:opennutritracker/core/presentation/widgets/dynamic_ont_logo.dart';
+import 'package:opennutritracker/core/utils/locator.dart';
+import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart';
 import 'package:opennutritracker/core/utils/navigation_options.dart';
 import 'package:opennutritracker/generated/l10n.dart';
 
@@ -26,6 +28,13 @@ class HomeAppbar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
+        IconButton(
+          icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onSurface),
+          tooltip: 'Refresh',
+          onPressed: () {
+            locator<HomeBloc>().add(const LoadItemsEvent());
+          },
+        ),
         IconButton(
           icon: Icon(Icons.settings_outlined,
               color: Theme.of(context).colorScheme.onSurface),

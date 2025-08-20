@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:opennutritracker/core/utils/locator.dart';
 import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart';
+import 'package:opennutritracker/core/utils/id_generator.dart';
 
 class ChatProcessingService {
   static final ChatProcessingService _instance = ChatProcessingService._internal();
@@ -85,6 +86,21 @@ class ChatProcessingService {
     } catch (e) {
       _log.severe('Error processing message: $e');
       _log.severe('Error stack trace: ${StackTrace.current}');
+      // Append assistant error message to keep thread usable
+      try {
+        // Ensure the just-sent user message is preserved in the history on failure
+        final userMsg = _chatUsecase.createUserMessage(message);
+        final assistantError = ChatMessageEntity(
+          id: IdGenerator.getUniqueID(),
+          content: 'AI Services unavailable due to error: $e. Try again later.',
+          type: ChatMessageType.assistant,
+          timestamp: DateTime.now(),
+          isVisible: true,
+        );
+        final updated = [...chatHistory, userMsg, assistantError];
+        await _chatUsecase.saveChatHistory(updated);
+        onUpdate(updated);
+      } catch (_) {}
       onError('Failed to send message: $e');
     } finally {
       _isProcessing = false;

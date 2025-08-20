@@ -181,3 +181,5 @@ jspm_packages/
 
 # TernJS port file
 .tern-port
+PRODUCTION_BUILD.md
+TESTING.md

@@ -9,6 +9,8 @@ class ChatDataSource {
   static const String _apiKeyKey = 'openrouter_api_key';
   static const String _chatHistoryKey = 'chat_history';
   static const String _customModelsKey = 'custom_models';
+  static const String _persistentSummaryKey = 'chat_persistent_summary';
+  static const String _persistentFactsKey = 'chat_persistent_facts';
   static const String _openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
   
   final Logger _log = Logger('ChatDataSource');
@@ -194,6 +196,11 @@ class ChatDataSource {
         'User-Agent': 'OpenNutriTracker/1.0',
       }}');
       
+      // Load persistent memory (summary/facts)
+      final prefs = await SharedPreferences.getInstance();
+      final persistentSummary = prefs.getString(_persistentSummaryKey) ?? '';
+      final persistentFacts = prefs.getString(_persistentFactsKey) ?? '';
+
       // Build messages array with system message, chat history, and current message
       final messages = [
                   {
@@ -222,12 +229,14 @@ Use JSON function calls in this format:
 1. **add_food_entry** - Add a single food entry
   Parameters:
   - foodName (string): Name of the food
-  - calories (number): Calories per unit
-  - protein (number): Protein in grams per unit
-  - carbs (number): Carbs in grams per unit
-  - fat (number): Fat in grams per unit
-  - amount (number): Amount consumed
-  - unit (string): Unit of measurement (g, ml, serving, etc.)
+  - caloriesPerUnit (number): Calories per 1 unit (g/ml/serving)
+  - protein (number): Protein per 1 unit
+  - carbs (number): Carbs per 1 unit
+  - fat (number): Fat per 1 unit
+  - amount (number): How many units consumed
+  - unit (string): g, ml, or serving
+  - servingWeightGrams (number, optional): REQUIRED if unit is "serving" (can be estimated)
+  - isEstimated (boolean, optional): Whether servingWeightGrams is an estimate
   - mealType (string): breakfast/lunch/dinner/snack
   - date (string): today/yesterday/tomorrow/specific date (YYYY-MM-DD)
 
@@ -235,6 +244,8 @@ Use JSON function calls in this format:
   Parameters:
   - entries (array): Array of food entry objects
   - date (string): Date for all entries
+  Notes:
+  - Each entry uses the same fields as add_food_entry (including servingWeightGrams and isEstimated)
 
 3. **delete_all_entries_for_date** - Delete all entries for a date
   Parameters:
@@ -264,6 +275,25 @@ Use JSON function calls in this format:
   Parameters:
   - days (number): Number of days to include (optional, defaults to 7)
 
+9. **get_diary_range** - Get diary entries per day in a date range
+  Parameters:
+  - startDate (string): Start date (YYYY-MM-DD)
+  - endDate (string): End date (YYYY-MM-DD)
+
+10. **add_activity** - Add an exercise/activity
+  Parameters:
+  - activityName (string): e.g., "running", "cycling"
+  - durationMinutes (number): e.g., 45
+  - date (string): today/yesterday/tomorrow/specific date (YYYY-MM-DD)
+
+11. **delete_activity** - Delete an activity by id
+  Parameters:
+  - activityId (string)
+
+12. **get_activities** - Get activities for a date
+  Parameters:
+  - date (string): Date to list activities for
+
 **Date Format Guidelines:**
 - Use "today", "yesterday", "tomorrow" for relative dates
 - Use "YYYY-MM-DD" format for specific dates (e.g., "2024-01-15")
@@ -275,7 +305,7 @@ Use JSON function calls in this format:
 **Examples:**
 
 User: "I had a banana for breakfast"
-Response: "I've added a banana to your breakfast! 🍌
+Response: "I've added a banana to your breakfast!
 
 \`\`\`json
 {
@@ -283,12 +313,14 @@ Response: "I've added a banana to your breakfast! 🍌
   "function": "add_food_entry",
   "parameters": {
     "foodName": "Banana",
-    "calories": 89.0,
-    "protein": 1.1,
-    "carbs": 22.8,
+    "caloriesPerUnit": 105.0,
+    "protein": 1.3,
+    "carbs": 27.0,
     "fat": 0.3,
-    "amount": 1.0,
+    "amount": 1,
     "unit": "serving",
+    "servingWeightGrams": 118,
+    "isEstimated": true,
     "mealType": "breakfast",
     "date": "today"
   }
@@ -367,7 +399,21 @@ Use this information to provide personalized nutrition advice and recommendation
 9. Use proper Markdown formatting to make information easy to scan and understand
 10. Avoid using emojis in your responses as they do not display correctly in the app
 
-Always be helpful, accurate, and encouraging. When discussing nutrition, provide evidence-based advice. If you're unsure about something, say so rather than guessing.'''
+Always be helpful, accurate, and encouraging. When discussing nutrition, provide evidence-based advice. If you're unsure about something, say so rather than guessing.
+
+${persistentSummary.isNotEmpty ? '''
+PERSISTENT USER HABIT SUMMARY (for extra context; do not repeat verbatim):
+$persistentSummary
+''' : ''}
+${userInfo != null ? '''
+USER PROFILE (for context):
+$userInfo
+''' : ''}
+${persistentFacts.isNotEmpty ? '''
+PERSISTENT FACTS (short bullets you can rely on):
+$persistentFacts
+''' : ''}
+'''
           }
       ];
 
@@ -434,5 +480,26 @@ Always be helpful, accurate, and encouraging. When discussing nutrition, provide
       
       throw Exception('Failed to connect to AI assistant');
     }
+  }
+
+  // Persistent memory APIs
+  Future<void> setPersistentSummary(String summary) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_persistentSummaryKey, summary.trim());
+  }
+
+  Future<String?> getPersistentSummary() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_persistentSummaryKey);
+  }
+
+  Future<void> setPersistentFacts(String facts) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_persistentFactsKey, facts.trim());
+  }
+
+  Future<String?> getPersistentFacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_persistentFactsKey);
   }
 } 

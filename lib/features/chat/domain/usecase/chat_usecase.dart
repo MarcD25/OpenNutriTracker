@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:opennutritracker/features/chat/data/data_source/chat_data_source.dart';
 import 'package:opennutritracker/features/chat/domain/entity/chat_message_entity.dart';
@@ -17,6 +16,14 @@ import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usec
 import 'package:opennutritracker/features/chat/domain/usecase/chat_diary_data_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/bulk_intake_operations_usecase.dart';
 import 'package:logging/logging.dart';
+import 'package:opennutritracker/core/utils/locator.dart';
+import 'package:opennutritracker/core/domain/usecase/get_user_activity_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/add_user_activity_usercase.dart';
+import 'package:opennutritracker/core/domain/usecase/delete_user_activity_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_physical_activity_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/add_tracked_day_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_kcal_goal_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_macro_goal_usecase.dart';
 
 class ChatUsecase {
   final ChatDataSource _chatDataSource;
@@ -37,6 +44,14 @@ class ChatUsecase {
          _aiFoodEntryUsecase,
          _bulkIntakeOperationsUsecase,
          _chatDiaryDataUsecase,
+         locator<GetUserActivityUsecase>(),
+         locator<AddUserActivityUsecase>(),
+         locator<DeleteUserActivityUsecase>(),
+         locator<GetPhysicalActivityUsecase>(),
+         locator<AddTrackedDayUsecase>(),
+         locator<GetKcalGoalUsecase>(),
+         locator<GetMacroGoalUsecase>(),
+         locator<GetUserUsecase>(),
        );
 
   // API Key Management
@@ -220,6 +235,10 @@ class ChatUsecase {
       messages.add(assistantMessage);
     }
     
+    // After each assistant reply, opportunistically update persistent summary/facts
+    try {
+      await _maybeUpdateSummaryAndFacts([...?chatHistory, ...messages]);
+    } catch (_) {}
     return messages;
   }
 
@@ -344,6 +363,10 @@ Use this information to provide personalized nutrition advice and recommendation
         final data = json.decode(responseBody);
         final content = data['choices'][0]['message']['content'];
         _log.info('Received final AI response with ${content.length} characters');
+        // Try to update summary/facts based on final content
+        try {
+          await _maybeUpdateSummaryAndFacts(chatHistory ?? [], finalAssistantContent: content);
+        } catch (_) {}
         return content;
       } else {
         _log.severe('OpenRouter API error: ${response.statusCode} - ${response.body}');
@@ -352,6 +375,67 @@ Use this information to provide personalized nutrition advice and recommendation
     } catch (e) {
       _log.severe('Error sending function results to AI: $e');
       throw Exception('Failed to process function results');
+    }
+  }
+
+  // Summarization and persistent facts
+  Future<void> _maybeUpdateSummaryAndFacts(List<ChatMessageEntity> fullThread, {String? finalAssistantContent}) async {
+    // Only summarize when thread grows big or final content supplied
+    if ((fullThread.length < 30) && finalAssistantContent == null) return;
+
+    final model = await getSelectedModel();
+    final apiKey = (await getApiKey()) ?? '';
+    if (apiKey.isEmpty) return;
+
+    // Build compact text transcript
+    final transcript = StringBuffer();
+    for (final m in fullThread.take(200)) {
+      final role = m.type == ChatMessageType.user ? 'User' : (m.type == ChatMessageType.assistant ? 'Assistant' : 'Function');
+      transcript.writeln('$role: ${m.content}');
+    }
+    if (finalAssistantContent != null) {
+      transcript.writeln('Assistant: $finalAssistantContent');
+    }
+
+    final prompt = '''Summarize the user's recurring nutrition habits/preferences concisely (max 1200 chars). Then extract 3-10 durable facts as short bullet points suitable as stable memory. Output JSON with keys "summary" and "facts" (facts is an array of strings).''';
+
+    final requestBody = {
+      'model': model,
+      'messages': [
+        {'role': 'system', 'content': 'You are a helpful assistant that produces compact JSON summaries.'},
+        {'role': 'user', 'content': '$prompt\n\nTranscript:\n${transcript.toString()}'}
+      ],
+      'max_tokens': 1200,
+      'temperature': 0.2,
+    };
+
+    final resp = await http.post(
+      Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+        'HTTP-Referer': 'https://opennutritracker.app',
+        'X-Title': 'OpenNutriTracker',
+        'User-Agent': 'OpenNutriTracker/1.0',
+      },
+      body: json.encode(requestBody),
+    );
+    if (resp.statusCode != 200) return;
+    final body = json.decode(utf8.decode(resp.bodyBytes));
+    final content = body['choices'][0]['message']['content'];
+    try {
+      final parsed = json.decode(content);
+      final summary = (parsed['summary'] ?? '').toString();
+      final factsList = (parsed['facts'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      final facts = factsList.map((e) => '- $e').join('\n');
+      if (summary.isNotEmpty) {
+        await _chatDataSource.setPersistentSummary(summary);
+      }
+      if (facts.isNotEmpty) {
+        await _chatDataSource.setPersistentFacts(facts);
+      }
+    } catch (_) {
+      // ignore parse errors
     }
   }
 

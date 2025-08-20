@@ -44,13 +44,67 @@ class AIFoodEntryUsecase {
     required String unit,
     required String mealType,
     DateTime? date,
+    double? servingWeightGrams,
+    bool? isEstimatedServingWeight,
   }) async {
     final targetDate = date ?? DateTime.now();
     
     _log.info('Adding food entry: $foodName ($amount $unit) for ${targetDate.toString().split(' ')[0]}');
     _log.info('Nutrition: $calories cal, ${protein}g protein, ${carbs}g carbs, ${fat}g fat');
     
-    // Create meal entity
+    // Normalize units and amounts
+    // IntakeEntity.amount must be in base units (g/ml) to work with energyPerUnit (per g/ml)
+    // If unit == serving, require servingWeightGrams to convert to grams
+    String normalizedUnit = unit.toLowerCase();
+    double normalizedAmount = amount; // in g/ml after normalization
+
+    // Calculate per-100g/ml nutriments depending on unit
+    // Incoming values (calories/protein/carbs/fat) are per ONE unit specified by `unit`
+    double energyPer100;
+    double proteinPer100;
+    double carbsPer100;
+    double fatPer100;
+
+    if (normalizedUnit == 'serving' || normalizedUnit == 'portion') {
+      if (servingWeightGrams == null || servingWeightGrams <= 0) {
+        _log.warning('Missing servingWeightGrams for unit=serving. Aborting add.');
+        throw ArgumentError('servingWeightGrams is required when unit is "serving"');
+      }
+      // Convert number of servings to grams
+      normalizedUnit = 'g';
+      normalizedAmount = amount * servingWeightGrams;
+
+      // Convert per-serving to per-100g
+      energyPer100 = (calories / servingWeightGrams) * 100.0;
+      proteinPer100 = (protein / servingWeightGrams) * 100.0;
+      carbsPer100 = (carbs / servingWeightGrams) * 100.0;
+      fatPer100 = (fat / servingWeightGrams) * 100.0;
+    } else if (normalizedUnit == 'g' || normalizedUnit == 'gram' || normalizedUnit == 'grams') {
+      normalizedUnit = 'g';
+      normalizedAmount = amount;
+      energyPer100 = calories * 100.0;
+      proteinPer100 = protein * 100.0;
+      carbsPer100 = carbs * 100.0;
+      fatPer100 = fat * 100.0;
+    } else if (normalizedUnit == 'ml') {
+      normalizedUnit = 'ml';
+      normalizedAmount = amount;
+      energyPer100 = calories * 100.0;
+      proteinPer100 = protein * 100.0;
+      carbsPer100 = carbs * 100.0;
+      fatPer100 = fat * 100.0;
+    } else {
+      // Unknown unit: default assume grams to avoid crashes, and log
+      _log.warning('Unknown unit "$unit". Assuming grams.');
+      normalizedUnit = 'g';
+      normalizedAmount = amount;
+      energyPer100 = calories * 100.0;
+      proteinPer100 = protein * 100.0;
+      carbsPer100 = carbs * 100.0;
+      fatPer100 = fat * 100.0;
+    }
+
+    // Create meal entity with normalized nutriments
     final mealEntity = MealEntity(
       code: IdGenerator.getUniqueID(),
       name: foodName,
@@ -58,16 +112,23 @@ class AIFoodEntryUsecase {
       thumbnailImageUrl: null,
       mainImageUrl: null,
       url: null,
-      mealQuantity: amount.toString(),
-      mealUnit: unit,
-      servingQuantity: amount,
-      servingUnit: unit,
-      servingSize: '$amount $unit',
+      mealQuantity: normalizedAmount.toString(),
+      mealUnit: normalizedUnit,
+      // For serving inputs, we store the serving weight for UI reference; otherwise leave null
+      servingQuantity: (unit.toLowerCase() == 'serving' || unit.toLowerCase() == 'portion')
+          ? servingWeightGrams
+          : null,
+      servingUnit: (unit.toLowerCase() == 'serving' || unit.toLowerCase() == 'portion')
+          ? 'g'
+          : normalizedUnit,
+      servingSize: (unit.toLowerCase() == 'serving' || unit.toLowerCase() == 'portion')
+          ? '${servingWeightGrams?.toStringAsFixed(0) ?? '?'} g${(isEstimatedServingWeight ?? false) ? ' (est.)' : ''}'
+          : '$normalizedAmount $normalizedUnit',
       nutriments: MealNutrimentsEntity(
-        energyKcal100: calories * 100, // Convert to per 100g
-        proteins100: protein * 100,
-        carbohydrates100: carbs * 100,
-        fat100: fat * 100,
+        energyKcal100: energyPer100,
+        proteins100: proteinPer100,
+        carbohydrates100: carbsPer100,
+        fat100: fatPer100,
         sugars100: 0,
         saturatedFat100: 0,
         fiber100: 0,
@@ -81,8 +142,8 @@ class AIFoodEntryUsecase {
     // Create intake entity
     final intakeEntity = IntakeEntity(
       id: IdGenerator.getUniqueID(),
-      unit: unit,
-      amount: amount,
+      unit: normalizedUnit,
+      amount: normalizedAmount,
       type: intakeType,
       meal: mealEntity,
       dateTime: targetDate,
@@ -107,14 +168,16 @@ class AIFoodEntryUsecase {
     for (final entry in foodEntries) {
       await addFoodEntry(
         foodName: entry['name'] as String,
-        calories: entry['calories'] as double,
-        protein: entry['protein'] as double,
-        carbs: entry['carbs'] as double,
-        fat: entry['fat'] as double,
-        amount: entry['amount'] as double,
+        calories: (entry['calories'] as num).toDouble(),
+        protein: (entry['protein'] as num).toDouble(),
+        carbs: (entry['carbs'] as num).toDouble(),
+        fat: (entry['fat'] as num).toDouble(),
+        amount: (entry['amount'] as num).toDouble(),
         unit: entry['unit'] as String,
         mealType: entry['mealType'] as String,
         date: targetDate,
+        servingWeightGrams: (entry['servingWeightGrams'] as num?)?.toDouble(),
+        isEstimatedServingWeight: entry['isEstimated'] as bool?,
       );
     }
   }

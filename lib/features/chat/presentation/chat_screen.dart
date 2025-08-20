@@ -19,19 +19,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late ChatBloc _chatBloc;
+  bool _initialScrollPositioned = false;
 
   @override
   void initState() {
     super.initState();
     _chatBloc = locator<ChatBloc>();
     _chatBloc.add(LoadChatEvent());
-    
-    // Ensure scroll to bottom when chat is first loaded
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
   }
 
   @override
@@ -146,14 +140,22 @@ class _ChatScreenState extends State<ChatScreen> {
               SnackBar(content: Text(state.message)),
             );
           } else if (state is ChatLoaded && state.messages.isNotEmpty) {
-            // Auto-scroll to bottom when new messages are added
+            // On first load, jump to bottom without animation.
+            // Afterwards, animate to bottom on updates.
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0) {
-                _scrollController.animateTo(
-                  _scrollController.position.maxScrollExtent,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
+              if (!_initialScrollPositioned) {
+                if (_scrollController.hasClients) {
+                  _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+                  _initialScrollPositioned = true;
+                }
+              } else {
+                if (_scrollController.hasClients) {
+                  _scrollController.animateTo(
+                    _scrollController.position.minScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                }
               }
             });
           }
@@ -221,11 +223,13 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: ListView.builder(
+              reverse: true,
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               itemCount: state.messages.length,
               itemBuilder: (context, index) {
-                final message = state.messages[index];
+                final reversedIndex = state.messages.length - 1 - index;
+                final message = state.messages[reversedIndex];
                 return ChatMessageWidget(
                   message: message,
                   onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
@@ -300,11 +304,13 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           Expanded(
             child: ListView.builder(
+              reverse: true,
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               itemCount: state.messages.length,
               itemBuilder: (context, index) {
-                final message = state.messages[index];
+                final reversedIndex = state.messages.length - 1 - index;
+                final message = state.messages[reversedIndex];
                 return ChatMessageWidget(
                   message: message,
                   onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
@@ -389,9 +395,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0) {
+      if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          _scrollController.position.minScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );

@@ -4,6 +4,11 @@ import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
 import 'package:opennutritracker/core/domain/entity/tracked_day_entity.dart';
 import 'package:opennutritracker/core/domain/entity/user_activity_entity.dart';
 import 'package:opennutritracker/core/presentation/widgets/activity_vertial_list.dart';
+import 'package:opennutritracker/core/presentation/widgets/edit_dialog.dart';
+import 'package:opennutritracker/core/utils/locator.dart';
+import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart';
+import 'package:opennutritracker/core/utils/navigation_options.dart';
+import 'package:opennutritracker/features/edit_meal/presentation/edit_meal_screen.dart';
 import 'package:opennutritracker/core/presentation/widgets/copy_or_delete_dialog.dart';
 import 'package:opennutritracker/core/presentation/widgets/copy_dialog.dart';
 import 'package:opennutritracker/core/presentation/widgets/delete_dialog.dart';
@@ -108,6 +113,18 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: breakfastIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
               onCopyIntakeCallback:
                   DateUtils.isSameDay(selectedDay, DateTime.now())
                       ? null
@@ -123,6 +140,18 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: lunchIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
               usesImperialUnits: usesImperialUnits,
               onCopyIntakeCallback:
                   DateUtils.isSameDay(selectedDay, DateTime.now())
@@ -138,6 +167,18 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: dinnerIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
               onCopyIntakeCallback:
                   DateUtils.isSameDay(selectedDay, DateTime.now())
                       ? null
@@ -152,6 +193,18 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: snackIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
               usesImperialUnits: usesImperialUnits,
               onCopyIntakeCallback:
                   DateUtils.isSameDay(selectedDay, DateTime.now())
@@ -244,12 +297,22 @@ class DayInfoWidget extends StatelessWidget {
 
   void showCopyOrDeleteIntakeDialog(
       BuildContext context, IntakeEntity intakeEntity) async {
-    final copyOrDelete = await showDialog<bool>(
+    final copyOrDelete = await showDialog<bool?>(
         context: context, builder: (context) => const CopyOrDeleteDialog());
     if (context.mounted) {
-      if (copyOrDelete != null && !copyOrDelete) {
+      if (copyOrDelete == null) {
+        // Edit details
+        // Navigate to full edit meal screen prefilled with this intake's meal
+        Navigator.of(context).pushNamed(NavigationOptions.editMealRoute,
+            arguments: EditMealScreenArguments(
+              selectedDay,
+              intakeEntity.meal,
+              intakeEntity.type,
+              usesImperialUnits,
+            ));
+      } else if (copyOrDelete == false) {
         showDeleteIntakeDialog(context, intakeEntity);
-      } else if (copyOrDelete != null && copyOrDelete) {
+      } else if (copyOrDelete == true) {
         showCopyDialog(context, intakeEntity);
       }
     }

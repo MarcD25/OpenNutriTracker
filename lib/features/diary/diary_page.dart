@@ -150,19 +150,31 @@ class _DiaryPageState extends State<DiaryPage> with WidgetsBindingObserver {
 
   void _onCopyIntakeItem(IntakeEntity intakeEntity,
       TrackedDayEntity? trackedDayEntity, AddMealType? type) async {
+    // Pick target date
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate == null) return;
+
+    // Determine final meal type
     IntakeTypeEntity finalType;
     if (type == null) {
       finalType = intakeEntity.type;
     } else {
       finalType = type.getIntakeType();
     }
+
     _mealDetailBloc.addIntake(
-        context,
-        intakeEntity.unit,
-        intakeEntity.amount.toString(),
-        finalType,
-        intakeEntity.meal,
-        DateTime.now());
+      context,
+      intakeEntity.unit,
+      intakeEntity.amount.toString(),
+      finalType,
+      intakeEntity.meal,
+      pickedDate,
+    );
     _diaryBloc.updateHomePage();
   }
 

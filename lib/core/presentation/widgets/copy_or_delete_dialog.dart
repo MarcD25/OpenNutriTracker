@@ -12,6 +12,11 @@ class CopyOrDeleteDialog extends StatelessWidget {
       actions: [
         TextButton(
             onPressed: () {
+              Navigator.of(context).pop(null);
+            },
+            child: const Text('EDIT DETAILS')),
+        TextButton(
+            onPressed: () {
               Navigator.of(context).pop(true);
             },
             child: Text(S.of(context).dialogCopyLabel.toUpperCase())),

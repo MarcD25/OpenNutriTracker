@@ -5,17 +5,46 @@ import 'package:opennutritracker/features/chat/domain/entity/function_call_entit
 import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usecase.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_diary_data_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/bulk_intake_operations_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_user_activity_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/add_user_activity_usercase.dart';
+import 'package:opennutritracker/core/domain/usecase/delete_user_activity_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_physical_activity_usecase.dart';
+import 'package:opennutritracker/core/utils/id_generator.dart';
+import 'package:opennutritracker/core/domain/entity/user_activity_entity.dart';
+import 'package:opennutritracker/core/domain/entity/physical_activity_entity.dart';
+import 'package:opennutritracker/core/domain/usecase/add_tracked_day_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_kcal_goal_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_macro_goal_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_user_usecase.dart';
+import 'package:opennutritracker/core/utils/calc/met_calc.dart';
+import 'package:opennutritracker/core/utils/calc/macro_calc.dart';
 
 class FunctionExecutionService {
   final AIFoodEntryUsecase _aiFoodEntryUsecase;
   final BulkIntakeOperationsUsecase _bulkIntakeOperationsUsecase;
   final ChatDiaryDataUsecase _chatDiaryDataUsecase;
   final Logger _log = Logger('FunctionExecutionService');
+  final GetUserActivityUsecase _getUserActivityUsecase;
+  final AddUserActivityUsecase _addUserActivityUsecase;
+  final DeleteUserActivityUsecase _deleteUserActivityUsecase;
+  final GetPhysicalActivityUsecase _getPhysicalActivityUsecase;
+  final AddTrackedDayUsecase _addTrackedDayUsecase;
+  final GetKcalGoalUsecase _getKcalGoalUsecase;
+  final GetMacroGoalUsecase _getMacroGoalUsecase;
+  final GetUserUsecase _getUserUsecase;
 
   FunctionExecutionService(
     this._aiFoodEntryUsecase,
     this._bulkIntakeOperationsUsecase,
     this._chatDiaryDataUsecase,
+    this._getUserActivityUsecase,
+    this._addUserActivityUsecase,
+    this._deleteUserActivityUsecase,
+    this._getPhysicalActivityUsecase,
+    this._addTrackedDayUsecase,
+    this._getKcalGoalUsecase,
+    this._getMacroGoalUsecase,
+    this._getUserUsecase,
   );
 
   /// Executes a function call in the background
@@ -29,6 +58,8 @@ class FunctionExecutionService {
           return await _executeAddFoodEntry(functionCall.parameters);
         case 'add_multiple_food_entries':
           return await _executeAddMultipleFoodEntries(functionCall.parameters);
+        case 'get_diary_range':
+          return await _executeGetDiaryRange(functionCall.parameters);
         case 'delete_all_entries_for_date':
           return await _executeDeleteAllEntriesForDate(functionCall.parameters);
         case 'delete_entries_by_meal_type':
@@ -41,12 +72,109 @@ class FunctionExecutionService {
           return await _executeGetDiaryData(functionCall.parameters);
         case 'get_progress_summary':
           return await _executeGetProgressSummary(functionCall.parameters);
+        case 'add_activity':
+          return await _executeAddActivity(functionCall.parameters);
+        case 'delete_activity':
+          return await _executeDeleteActivity(functionCall.parameters);
+        case 'get_activities':
+          return await _executeGetActivities(functionCall.parameters);
         default:
           return FunctionCallResult.error('Unknown function: ${functionCall.function}');
       }
     } catch (e) {
       _log.severe('Error executing function ${functionCall.function}: $e');
       return FunctionCallResult.error('Execution error: $e');
+    }
+  }
+
+  Future<FunctionCallResult> _executeAddActivity(Map<String, dynamic> params) async {
+    try {
+      final name = params['activityName'] as String;
+      final duration = _parseNumericParam(params['durationMinutes']);
+      final dateStr = params['date'] as String? ?? 'today';
+      final day = _parseDate(dateStr);
+      if (day == null) return FunctionCallResult.error('Invalid date: $dateStr');
+
+      // Find physical activity by name (simple contains match)
+      final activities = await _getPhysicalActivityUsecase.getAllPhysicalActivities();
+      final match = activities.firstWhere(
+        (a) => (a.code.toLowerCase().contains(name.toLowerCase())),
+        orElse: () => activities.first,
+      );
+
+      // Compute burned kcal using MET and user data
+      final user = await _getUserUsecase.getUserData();
+      final burnedKcal = METCalc.getTotalBurnedKcal(user, match, duration);
+      final userActivity = UserActivityEntity(
+          IdGenerator.getUniqueID(), duration, burnedKcal, day, match);
+      await _addUserActivityUsecase.addUserActivity(userActivity);
+
+      // Ensure tracked day exists and adjust goals similar to ActivityDetailBloc
+      await _ensureTrackedDayExists(day);
+      final carbsIncrease = MacroCalc.getTotalCarbsGoal(burnedKcal);
+      final fatIncrease = MacroCalc.getTotalFatsGoal(burnedKcal);
+      final proteinIncrease = MacroCalc.getTotalProteinsGoal(burnedKcal);
+      await _addTrackedDayUsecase.increaseDayCalorieGoal(day, burnedKcal);
+      await _addTrackedDayUsecase.increaseDayMacroGoals(day,
+          carbsAmount: carbsIncrease,
+          fatAmount: fatIncrease,
+          proteinAmount: proteinIncrease);
+
+      return FunctionCallResult.success({'message': 'Added activity', 'activityName': name, 'date': day.toString()});
+    } catch (e) {
+      _log.severe('Error adding activity: $e');
+      return FunctionCallResult.error('Failed to add activity: $e');
+    }
+  }
+
+  Future<void> _ensureTrackedDayExists(DateTime day) async {
+    final hasTrackedDay = await _addTrackedDayUsecase.hasTrackedDay(day);
+    if (!hasTrackedDay) {
+      final totalKcalGoal = await _getKcalGoalUsecase.getKcalGoal(totalKcalActivitiesParam: 0);
+      final totalCarbsGoal = await _getMacroGoalUsecase.getCarbsGoal(totalKcalGoal);
+      final totalFatGoal = await _getMacroGoalUsecase.getFatsGoal(totalKcalGoal);
+      final totalProteinGoal = await _getMacroGoalUsecase.getProteinsGoal(totalKcalGoal);
+      await _addTrackedDayUsecase.addNewTrackedDay(day, totalKcalGoal, totalCarbsGoal, totalFatGoal, totalProteinGoal);
+    }
+  }
+
+  Future<FunctionCallResult> _executeDeleteActivity(Map<String, dynamic> params) async {
+    try {
+      final id = params['activityId'] as String?;
+      if (id == null) return FunctionCallResult.error('activityId is required');
+      // We need an entity to delete; in current repo, deletion uses entity
+      final day = DateTime.now();
+      final dummy = UserActivityEntity(id, 0, 0, day, activitiesPlaceholder());
+      await _deleteUserActivityUsecase.deleteUserActivity(dummy);
+      return FunctionCallResult.success({'message': 'Deleted activity', 'activityId': id});
+    } catch (e) {
+      _log.severe('Error deleting activity: $e');
+      return FunctionCallResult.error('Failed to delete activity: $e');
+    }
+  }
+
+  PhysicalActivityEntity activitiesPlaceholder() {
+    return const PhysicalActivityEntity('unknown', 'unknown', 'unknown', 1.0, [], PhysicalActivityTypeEntity.sport);
+  }
+
+  Future<FunctionCallResult> _executeGetActivities(Map<String, dynamic> params) async {
+    try {
+      final dateStr = params['date'] as String?;
+      if (dateStr == null) return FunctionCallResult.error('date is required');
+      final day = _parseDate(dateStr);
+      if (day == null) return FunctionCallResult.error('Invalid date: $dateStr');
+      final activities = await _getUserActivityUsecase.getUserActivityByDay(day);
+      final data = activities.map((a) => {
+        'id': a.id,
+        'name': a.physicalActivityEntity.code,
+        'durationMinutes': a.duration,
+        'burnedKcal': a.burnedKcal,
+        'date': a.date.toString(),
+      }).toList();
+      return FunctionCallResult.success({'message': 'Retrieved activities', 'data': data});
+    } catch (e) {
+      _log.severe('Error getting activities: $e');
+      return FunctionCallResult.error('Failed to get activities: $e');
     }
   }
 
@@ -71,7 +199,8 @@ class FunctionExecutionService {
   Future<FunctionCallResult> _executeAddFoodEntry(Map<String, dynamic> params) async {
     try {
       final foodName = params['foodName'] as String;
-      final calories = _parseNumericParam(params['calories']);
+      // Backward compatible: accept calories or caloriesPerUnit
+      final calories = _parseNumericParam(params['calories'] ?? params['caloriesPerUnit']);
       final protein = _parseNumericParam(params['protein']);
       final carbs = _parseNumericParam(params['carbs']);
       final fat = _parseNumericParam(params['fat']);
@@ -79,6 +208,10 @@ class FunctionExecutionService {
       final unit = params['unit'] as String;
       final mealType = params['mealType'] as String;
       final dateString = params['date'] as String? ?? 'today';
+      final servingWeightGrams = params['servingWeightGrams'] != null
+          ? _parseNumericParam(params['servingWeightGrams'])
+          : null;
+      final isEstimatedServingWeight = params['isEstimated'] as bool?;
 
       final targetDate = _parseDate(dateString);
       if (targetDate == null) {
@@ -95,6 +228,8 @@ class FunctionExecutionService {
         unit: unit,
         mealType: mealType,
         date: targetDate,
+        servingWeightGrams: servingWeightGrams,
+        isEstimatedServingWeight: isEstimatedServingWeight,
       );
 
       _log.info('Successfully added food entry: $foodName');
@@ -124,13 +259,17 @@ class FunctionExecutionService {
         final entryMap = entry as Map<String, dynamic>;
         foodEntries.add({
           'name': entryMap['foodName'] as String,
-          'calories': _parseNumericParam(entryMap['calories']),
+          'calories': _parseNumericParam(entryMap['calories'] ?? entryMap['caloriesPerUnit']),
           'protein': _parseNumericParam(entryMap['protein']),
           'carbs': _parseNumericParam(entryMap['carbs']),
           'fat': _parseNumericParam(entryMap['fat']),
           'amount': _parseNumericParam(entryMap['amount']),
           'unit': entryMap['unit'] as String,
           'mealType': entryMap['mealType'] as String,
+          'servingWeightGrams': entryMap['servingWeightGrams'] != null
+              ? _parseNumericParam(entryMap['servingWeightGrams'])
+              : null,
+          'isEstimated': entryMap['isEstimated'] as bool?,
         });
       }
 
@@ -148,6 +287,58 @@ class FunctionExecutionService {
     } catch (e) {
       _log.severe('Error adding multiple food entries: $e');
       return FunctionCallResult.error('Failed to add food entries: $e');
+    }
+  }
+
+  Future<FunctionCallResult> _executeGetDiaryRange(Map<String, dynamic> params) async {
+    try {
+      final startDateStr = params['startDate'] as String?;
+      final endDateStr = params['endDate'] as String?;
+      if (startDateStr == null || endDateStr == null) {
+        return FunctionCallResult.error('startDate and endDate are required');
+      }
+      final start = _parseDate(startDateStr);
+      final end = _parseDate(endDateStr);
+      if (start == null || end == null) {
+        return FunctionCallResult.error('Invalid dates. Use YYYY-MM-DD');
+      }
+      if (end.isBefore(start)) {
+        return FunctionCallResult.error('endDate must be on or after startDate');
+      }
+
+      final List<Map<String, dynamic>> days = [];
+      DateTime cursor = DateTime(start.year, start.month, start.day);
+      final DateTime endDay = DateTime(end.year, end.month, end.day);
+      while (!cursor.isAfter(endDay)) {
+        final entries = await _chatDiaryDataUsecase.getFoodEntriesForDate(cursor);
+        final foodEntries = entries.map((e) => {
+          'name': e.meal.name,
+          'date': e.dateTime.toString().split(' ')[0],
+          'calories': e.totalKcal,
+          'mealType': e.type.toString().split('.').last,
+          'amount': e.amount,
+          'unit': e.unit,
+        }).toList();
+        final totalCalories = foodEntries.fold<double>(0.0, (sum, fe) => sum + (fe['calories'] as double));
+        days.add({
+          'date': cursor.toString().split(' ')[0],
+          'entries': foodEntries,
+          'totalCalories': totalCalories,
+        });
+        cursor = cursor.add(const Duration(days: 1));
+      }
+
+      return FunctionCallResult.success({
+        'message': 'Retrieved diary data for range',
+        'data': {
+          'days': days,
+          'startDate': start.toString(),
+          'endDate': end.toString(),
+        }
+      });
+    } catch (e) {
+      _log.severe('Error in get_diary_range: $e');
+      return FunctionCallResult.error('Failed to get diary range: $e');
     }
   }
 

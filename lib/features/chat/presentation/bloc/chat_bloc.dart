@@ -174,23 +174,44 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     });
 
     on<SendMessageEvent>((event, emit) async {
-      if (state is ChatLoaded && !_isProcessingMessage) {
+      final canProcess = (state is ChatLoaded || state is ChatError) && !_isProcessingMessage;
+      if (canProcess) {
         _isProcessingMessage = true;
-        final currentState = state as ChatLoaded;
+        // Normalize state into a ChatLoaded-like snapshot
+        final List<ChatMessageEntity> baseMessages;
+        final String baseApiKey;
+        final String baseSelectedModel;
+        final List<CustomModelEntity> baseCustomModels;
+        final CustomModelEntity? baseActiveModel;
+        if (state is ChatLoaded) {
+          final s = state as ChatLoaded;
+          baseMessages = s.messages;
+          baseApiKey = s.apiKey;
+          baseSelectedModel = s.selectedModel;
+          baseCustomModels = s.customModels;
+          baseActiveModel = s.activeModel;
+        } else {
+          final s = state as ChatError;
+          baseMessages = s.messages;
+          baseApiKey = s.apiKey;
+          baseSelectedModel = s.selectedModel;
+          baseCustomModels = s.customModels;
+          baseActiveModel = s.activeModel;
+        }
         
         _log.info('Starting message processing in BLoC...');
         
         // Immediately add user message to show it right away
         final userMessage = _chatUsecase.createUserMessage(event.message);
-        final messagesWithUser = [...currentState.messages, userMessage];
+        final messagesWithUser = [...baseMessages, userMessage];
         
         // Emit state with user message immediately
         emit(ChatLoaded(
           messages: messagesWithUser,
-          apiKey: currentState.apiKey,
-          selectedModel: currentState.selectedModel,
-          customModels: currentState.customModels,
-          activeModel: currentState.activeModel,
+          apiKey: baseApiKey,
+          selectedModel: baseSelectedModel,
+          customModels: baseCustomModels,
+          activeModel: baseActiveModel,
           showDebugMessages: _showDebugMessages,
           isLoading: true,
         ));
@@ -202,19 +223,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         // This will continue even if the BLoC is disposed
         _processingService.processMessage(
           message: event.message,
-          apiKey: currentState.apiKey,
-          selectedModel: currentState.selectedModel,
-          chatHistory: currentState.messages, // Use original history, not with user message
+          apiKey: baseApiKey,
+          selectedModel: baseSelectedModel,
+          chatHistory: baseMessages, // Use original history, not with user message
           onUpdate: (messages) {
             // Update the UI with new messages
             // Only emit if the BLoC is still active and not completed
             if (!isClosed && !emit.isDone) {
               emit(ChatLoaded(
                 messages: messages,
-                apiKey: currentState.apiKey,
-                selectedModel: currentState.selectedModel,
-                customModels: currentState.customModels,
-                activeModel: currentState.activeModel,
+                apiKey: baseApiKey,
+                selectedModel: baseSelectedModel,
+                customModels: baseCustomModels,
+                activeModel: baseActiveModel,
                 showDebugMessages: _showDebugMessages,
                 isLoading: false,
               ));
@@ -228,11 +249,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             if (!isClosed && !emit.isDone) {
               emit(ChatError(
                 error,
-                messages: currentState.messages,
-                apiKey: currentState.apiKey,
-                selectedModel: currentState.selectedModel,
-                customModels: currentState.customModels,
-                activeModel: currentState.activeModel,
+                // Preserve the just-added user message on error
+                messages: messagesWithUser,
+                apiKey: baseApiKey,
+                selectedModel: baseSelectedModel,
+                customModels: baseCustomModels,
+                activeModel: baseActiveModel,
                 showDebugMessages: _showDebugMessages,
               ));
             }
