@@ -1,29 +1,27 @@
 workflows:
   ios:
     name: iOS
-    max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
+      vars:
+        APPLE_ID: $APPLE_ID
+        APPLE_PASSWORD: $APPLE_PASSWORD
       ios_signing:
-        distribution_type: development  
-        bundle_identifier: com.yourcompany.opennutritracker
-        automatic_signing: true        
+        distribution_type: development
+        bundle_identifier: com.opennutritracker.ont.opennutritracker
+        automatic_signing: true
+        apple_id: $APPLE_ID
+        apple_id_password: $APPLE_PASSWORD
     scripts:
-      - name: Get Flutter packages
+      - name: Get packages & pods
         script: |
           flutter pub get
-      - name: Build iOS IPA
+          pod install --project-directory=ios
+      - name: Build IPA
         script: |
-          flutter build ipa --debug --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --debug
     artifacts:
       - build/ios/ipa/*.ipa
-    publishing:
-      email:
-        recipients:
-          - user@example.com
-        notify:
-          success: true
-          failure: true
