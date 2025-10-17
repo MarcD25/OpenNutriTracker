@@ -1,25 +1,29 @@
 workflows:
-  build_ios_latest:
-    name: Build iOS (.ipa) for latest commit
+  ios-sideload:
+    name: iOS Sideload
     max_build_duration: 60
+    instance_type: mac_mini_m1
     environment:
       flutter: stable
       xcode: latest
-      vars:
-        APP_NAME: "OpenNutriTracker"
+      cocoapods: default
+      ios_signing:
+        distribution_type: development  
+        bundle_identifier: com.yourcompany.opennutritracker
+        automatic_signing: true        
     scripts:
-      - name: Install dependencies
-        script: flutter pub get
-
-      - name: Generate files (build_runner)
-        script: flutter pub run build_runner build --delete-conflicting-outputs --build-filter="lib/**"
-
-      - name: Build iOS IPA (debug)
+      - name: Get Flutter packages
         script: |
-          flutter build ipa --debug \
-            --export-options-plist=/Users/builder/export_options.plist || \
-          flutter build ios --debug
-
+          flutter pub get
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --debug --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/iphoneos/*.app
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: true
