@@ -1,0 +1,25 @@
+workflows:
+  build_ios_latest:
+    name: Build iOS (.ipa) for latest commit
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      vars:
+        APP_NAME: "OpenNutriTracker"
+    scripts:
+      - name: Install dependencies
+        script: flutter pub get
+
+      - name: Generate files (build_runner)
+        script: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build iOS IPA (debug)
+        script: |
+          flutter build ipa --debug \
+            --export-options-plist=/Users/builder/export_options.plist || \
+          flutter build ios --debug
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/iphoneos/*.app

@@ -3,21 +3,29 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
 import 'package:opennutritracker/core/domain/entity/user_activity_entity.dart';
+// BMI entity import removed for cleaner home page
+
 import 'package:opennutritracker/core/domain/usecase/add_config_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/add_tracked_day_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/delete_intake_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/delete_user_activity_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/get_config_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/get_intake_usecase.dart';
-import 'package:opennutritracker/core/domain/usecase/get_kcal_goal_usecase.dart';
+
 import 'package:opennutritracker/core/domain/usecase/get_macro_goal_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/get_user_activity_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/get_user_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/update_intake_usecase.dart';
 import 'package:opennutritracker/core/utils/calc/calorie_goal_calc.dart';
+import 'package:opennutritracker/core/utils/calc/enhanced_calorie_goal_calc.dart';
+// BMI calculation import removed for cleaner home page
 import 'package:opennutritracker/core/utils/calc/macro_calc.dart';
 import 'package:opennutritracker/core/utils/locator.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/calendar_day_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/diary_bloc.dart';
+import 'package:opennutritracker/features/weight_checkin/domain/usecase/weight_checkin_usecase.dart';
+import 'package:opennutritracker/features/weight_checkin/domain/entity/weight_entry_entity.dart';
+import 'package:opennutritracker/features/weight_checkin/domain/entity/weight_trend_entity.dart';
 
 part 'home_event.dart';
 
@@ -32,8 +40,10 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetUserActivityUsecase _getUserActivityUsecase;
   final DeleteUserActivityUsecase _deleteUserActivityUsecase;
   final AddTrackedDayUsecase _addTrackedDayUseCase;
-  final GetKcalGoalUsecase _getKcalGoalUsecase;
+
   final GetMacroGoalUsecase _getMacroGoalUsecase;
+  final GetUserUsecase _getUserUsecase;
+  final WeightCheckinUsecase _weightCheckinUsecase;
 
   DateTime currentDay = DateTime.now();
 
@@ -46,8 +56,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       this._getUserActivityUsecase,
       this._deleteUserActivityUsecase,
       this._addTrackedDayUseCase,
-      this._getKcalGoalUsecase,
-      this._getMacroGoalUsecase)
+      this._getMacroGoalUsecase,
+      this._getUserUsecase,
+      this._weightCheckinUsecase)
       : super(HomeInitial()) {
     on<LoadItemsEvent>((event, emit) async {
       emit(HomeLoadingState());
@@ -104,7 +115,24 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       final totalKcalActivities =
           userActivities.map((activity) => activity.burnedKcal).toList().sum;
 
-      final totalKcalGoal = await _getKcalGoalUsecase.getKcalGoal();
+      // Get user data for calorie calculations
+      final userData = await _getUserUsecase.getUserData();
+      
+      // Calculate net calorie values for enhanced tracking
+      final baseTDEE = CalorieGoalCalc.getTdee(userData);
+      final calorieRecommendation = await EnhancedCalorieGoalCalc.getPersonalizedRecommendation(
+        userData, 
+        totalKcalActivities
+      );
+      
+      // Calculate TDEE with exercise (base TDEE + exercise calories)
+      final tdeeWithExercise = baseTDEE + totalKcalActivities;
+      
+      // Calculate net calories remaining (TDEE + exercise - food consumed)
+      final netKcalRemaining = tdeeWithExercise - totalKcalIntake;
+      
+      // Use BMI-adjusted calorie goal for display
+      final totalKcalGoal = calorieRecommendation.netCalories;
       final totalCarbsGoal =
           await _getMacroGoalUsecase.getCarbsGoal(totalKcalGoal);
       final totalFatsGoal =
@@ -114,6 +142,27 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
       final totalKcalLeft =
           CalorieGoalCalc.getDailyKcalLeft(totalKcalGoal, totalKcalIntake);
+
+      // BMI-related goal reassessment removed for cleaner home page
+      
+      // Load weight check-in data
+      final shouldShowWeightCheckin = await _weightCheckinUsecase.shouldShowCheckinReminder();
+      final lastWeightEntry = await _weightCheckinUsecase.getLatestWeightEntry();
+      final checkinFrequency = await _weightCheckinUsecase.getCheckinFrequency();
+      final nextCheckinDate = await _weightCheckinUsecase.getNextCheckinDate();
+      
+      // Calculate weight trend if we have enough data
+      WeightTrend? weightTrend;
+      if (lastWeightEntry != null) {
+        try {
+          weightTrend = await _weightCheckinUsecase.calculateWeightTrend(30);
+        } catch (e) {
+          // If trend calculation fails, continue without it
+          weightTrend = null;
+        }
+      }
+      
+      // BMI tracking removed for cleaner home page
 
       emit(HomeLoadedState(
           showDisclaimerDialog: showDisclaimerDialog,
@@ -132,7 +181,17 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
           dinnerIntakeList: dinnerIntakeList,
           snackIntakeList: snackIntakeList,
           userActivityList: userActivities,
-          usesImperialUnits: usesImperialUnits));
+          usesImperialUnits: usesImperialUnits,
+          // Net calorie calculation fields
+          baseTDEE: baseTDEE,
+          tdeeWithExercise: tdeeWithExercise,
+          netKcalRemaining: netKcalRemaining,
+          // Weight check-in fields
+          shouldShowWeightCheckin: shouldShowWeightCheckin,
+          lastWeightEntry: lastWeightEntry,
+          weightTrend: weightTrend,
+          checkinFrequency: checkinFrequency,
+          nextCheckinDate: nextCheckinDate));
     });
   }
 
@@ -185,6 +244,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
               oldIntakeObject.totalProteinsGram);
     }
     _updateDiaryPage(dateTime);
+    
+    // Trigger real-time update for net calorie calculation
+    add(LoadItemsEvent());
   }
 
   Future<void> deleteIntakeItem(IntakeEntity intakeEntity) async {
@@ -198,6 +260,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         proteinTracked: intakeEntity.totalProteinsGram);
 
     _updateDiaryPage(dateTime);
+    
+    // Trigger real-time update for net calorie calculation
+    add(LoadItemsEvent());
   }
 
   Future<void> deleteUserActivityItem(UserActivityEntity activityEntity) async {
@@ -216,10 +281,42 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         fatAmount: fatAmount,
         proteinAmount: proteinAmount);
     _updateDiaryPage(dateTime);
+    
+    // Trigger real-time update for net calorie calculation
+    add(LoadItemsEvent());
   }
 
   Future<void> _updateDiaryPage(DateTime day) async {
     locator<DiaryBloc>().add(const LoadDiaryYearEvent());
     locator<CalendarDayBloc>().add(RefreshCalendarDayEvent());
+  }
+
+  // BMI-related helper methods removed for cleaner home page focus
+
+  /// Handle weight check-in submission
+  Future<void> recordWeightEntry(double weight, String? notes) async {
+    try {
+      await _weightCheckinUsecase.recordWeightEntry(weight, notes: notes);
+      
+      // Refresh the home page to update BMI calculations and hide check-in prompt
+      add(const LoadItemsEvent());
+    } catch (e) {
+      // Handle error - could emit an error state or show snackbar
+      print('Failed to record weight entry: $e');
+      rethrow;
+    }
+  }
+
+  /// Set weight check-in frequency
+  Future<void> setWeightCheckinFrequency(CheckinFrequency frequency) async {
+    try {
+      await _weightCheckinUsecase.setCheckinFrequency(frequency);
+      
+      // Refresh to update the next check-in date
+      add(const LoadItemsEvent());
+    } catch (e) {
+      print('Failed to set check-in frequency: $e');
+      rethrow;
+    }
   }
 }

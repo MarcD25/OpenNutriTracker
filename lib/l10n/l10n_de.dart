@@ -334,10 +334,10 @@ class SDe extends S {
   String get copyOrDeleteTimeDialogTitle => 'Was soll getan werden?';
 
   @override
-  String get copyOrDeleteTimeDialogContent => 'Auf \"Nach heute kopieren\" klicken, um die Mahlzeit nach heute zu kopieren. Mit \"Löschen\" kann die Mahlzeit entfernt werden';
+  String get copyOrDeleteTimeDialogContent => 'Auf \"Zu anderem Tag kopieren\" klicken, um die Mahlzeit zu einem anderen Tag zu kopieren. Mit \"Löschen\" kann die Mahlzeit entfernt werden';
 
   @override
-  String get dialogCopyLabel => 'Nach heute kopieren';
+  String get dialogCopyLabel => 'Zu anderem Tag kopieren';
 
   @override
   String get dialogDeleteLabel => 'LÖSCHEN';
@@ -1440,4 +1440,34 @@ class SDe extends S {
 
   @override
   String get chatApiKeyChanged => 'API key changed successfully';
+
+  @override
+  String get netCalorieTrackingLabel => 'Netto-Kalorienverfolgung';
+
+  @override
+  String get baseTDEELabel => 'Basis TDEE';
+
+  @override
+  String get tdeeWithExerciseLabel => 'TDEE + Übung';
+
+  @override
+  String get netRemainingLabel => 'Netto Verbleibend';
+
+  @override
+  String get notifications => 'Benachrichtigungen';
+
+  @override
+  String get notificationsEnabled => 'Benachrichtigungen sind aktiviert';
+
+  @override
+  String get notificationsDisabled => 'Benachrichtigungen sind deaktiviert';
+
+  @override
+  String get notificationPermissionTitle => 'Benachrichtigungsberechtigung erforderlich';
+
+  @override
+  String get notificationPermissionMessage => 'Um Erinnerungen für Gewichtskontrollen zu erhalten, aktivieren Sie bitte Benachrichtigungen in Ihren Geräteeinstellungen.';
+
+  @override
+  String get ok => 'OK';
 }

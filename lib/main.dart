@@ -14,6 +14,7 @@ import 'package:opennutritracker/core/utils/locator.dart';
 import 'package:opennutritracker/core/utils/logger_config.dart';
 import 'package:opennutritracker/core/utils/navigation_options.dart';
 import 'package:opennutritracker/core/utils/theme_mode_provider.dart';
+import 'package:opennutritracker/core/services/notification_manager.dart';
 import 'package:opennutritracker/features/activity_detail/activity_detail_screen.dart';
 import 'package:opennutritracker/features/add_meal/presentation/add_meal_screen.dart';
 import 'package:opennutritracker/features/add_activity/presentation/add_activity_screen.dart';
@@ -22,6 +23,7 @@ import 'package:opennutritracker/features/onboarding/onboarding_screen.dart';
 import 'package:opennutritracker/features/scanner/scanner_screen.dart';
 import 'package:opennutritracker/features/meal_detail/meal_detail_screen.dart';
 import 'package:opennutritracker/features/settings/settings_screen.dart';
+import 'package:opennutritracker/features/weight_checkin/presentation/screens/weight_checkin_screen.dart';
 import 'package:opennutritracker/generated/l10n.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -30,6 +32,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LoggerConfig.intiLogger();
   await initLocator();
+  
+  // Initialize notification services
+  try {
+    await NotificationManager().initialize();
+  } catch (e) {
+    Logger('main').warning('Failed to initialize notifications: $e');
+  }
+  
   final isUserInitialized = await locator<UserDataSource>().hasUserData();
   final configRepo = locator<ConfigRepository>();
   final hasAcceptedAnonymousData =
@@ -109,6 +119,8 @@ class OpenNutriTrackerApp extends StatelessWidget {
             const ActivityDetailScreen(),
         NavigationOptions.imageFullScreenRoute: (context) =>
             const ImageFullScreen(),
+        NavigationOptions.weightCheckinRoute: (context) =>
+            const WeightCheckinScreen(),
       },
     );
   }

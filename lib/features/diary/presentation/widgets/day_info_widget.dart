@@ -12,6 +12,7 @@ import 'package:opennutritracker/features/edit_meal/presentation/edit_meal_scree
 import 'package:opennutritracker/core/presentation/widgets/copy_or_delete_dialog.dart';
 import 'package:opennutritracker/core/presentation/widgets/copy_dialog.dart';
 import 'package:opennutritracker/core/presentation/widgets/delete_dialog.dart';
+import 'package:opennutritracker/features/diary/presentation/widgets/food_entry_actions.dart';
 import 'package:opennutritracker/core/utils/custom_icons.dart';
 import 'package:opennutritracker/features/add_meal/presentation/add_meal_type.dart';
 import 'package:opennutritracker/features/home/presentation/widgets/intake_vertical_list.dart';
@@ -125,10 +126,7 @@ class DayInfoWidget extends StatelessWidget {
                   locator<HomeBloc>().add(const LoadItemsEvent());
                 }
               },
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onCopyIntakeCallback: onCopyIntake,
               usesImperialUnits: usesImperialUnits,
               trackedDayEntity: trackedDay,
             ),
@@ -153,10 +151,7 @@ class DayInfoWidget extends StatelessWidget {
                 }
               },
               usesImperialUnits: usesImperialUnits,
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onCopyIntakeCallback: onCopyIntake,
               trackedDayEntity: trackedDay,
             ),
             IntakeVerticalList(
@@ -179,10 +174,7 @@ class DayInfoWidget extends StatelessWidget {
                   locator<HomeBloc>().add(const LoadItemsEvent());
                 }
               },
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onCopyIntakeCallback: onCopyIntake,
               usesImperialUnits: usesImperialUnits,
             ),
             IntakeVerticalList(
@@ -206,10 +198,7 @@ class DayInfoWidget extends StatelessWidget {
                 }
               },
               usesImperialUnits: usesImperialUnits,
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onCopyIntakeCallback: onCopyIntake,
               trackedDayEntity: trackedDay,
             ),
             const SizedBox(height: 16.0)
@@ -338,11 +327,16 @@ class DayInfoWidget extends StatelessWidget {
 
   void onIntakeItemLongPressed(
       BuildContext context, IntakeEntity intakeEntity) async {
-    if (DateUtils.isSameDay(selectedDay, DateTime.now())) {
-      showDeleteIntakeDialog(context, intakeEntity);
-    } else {
-      showCopyOrDeleteIntakeDialog(context, intakeEntity);
-    }
+    // Use unified action sheet for all food entries regardless of date
+    FoodEntryActions.showActionSheet(
+      context,
+      intakeEntity,
+      selectedDay,
+      usesImperialUnits: usesImperialUnits,
+      onDeleteIntake: onDeleteIntake,
+      onCopyIntake: onCopyIntake,
+      trackedDayEntity: trackedDayEntity,
+    );
   }
 
   void onActivityItemLongPressed(

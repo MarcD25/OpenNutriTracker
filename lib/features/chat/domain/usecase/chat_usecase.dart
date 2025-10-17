@@ -6,6 +6,10 @@ import 'package:opennutritracker/features/chat/domain/entity/custom_model_entity
 import 'package:opennutritracker/features/chat/domain/entity/function_call_entity.dart';
 import 'package:opennutritracker/features/chat/domain/service/function_call_parser.dart';
 import 'package:opennutritracker/features/chat/domain/service/function_execution_service.dart';
+import 'package:opennutritracker/features/chat/domain/service/llm_response_validator.dart';
+import 'package:opennutritracker/features/chat/domain/entity/validation_result_entity.dart';
+import 'package:opennutritracker/features/chat/domain/entity/validated_response_entity.dart';
+import 'package:opennutritracker/core/domain/exception/app_exception.dart';
 import 'package:opennutritracker/core/utils/id_generator.dart';
 import 'package:opennutritracker/core/domain/entity/user_gender_entity.dart';
 import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
@@ -15,6 +19,8 @@ import 'package:opennutritracker/core/utils/calc/bmi_calc.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usecase.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_diary_data_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/bulk_intake_operations_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/logistics_tracking_usecase.dart';
+import 'package:opennutritracker/core/domain/entity/logistics_event_entity.dart';
 import 'package:logging/logging.dart';
 import 'package:opennutritracker/core/utils/locator.dart';
 import 'package:opennutritracker/core/domain/usecase/get_user_activity_usecase.dart';
@@ -32,7 +38,13 @@ class ChatUsecase {
   final ChatDiaryDataUsecase _chatDiaryDataUsecase;
   final BulkIntakeOperationsUsecase _bulkIntakeOperationsUsecase;
   final FunctionExecutionService _functionExecutionService;
+  final LLMResponseValidator _validator;
+  final LogisticsTrackingUsecase _logisticsTrackingUsecase;
   final Logger _log = Logger('ChatUsecase');
+
+  // Configuration constants for retry mechanism
+  static const int maxRetryAttempts = 2;
+  static const Duration retryDelay = Duration(seconds: 1);
 
   ChatUsecase(
     this._chatDataSource,
@@ -40,6 +52,8 @@ class ChatUsecase {
     this._aiFoodEntryUsecase,
     this._chatDiaryDataUsecase,
     this._bulkIntakeOperationsUsecase,
+    this._validator,
+    this._logisticsTrackingUsecase,
   ) : _functionExecutionService = FunctionExecutionService(
          _aiFoodEntryUsecase,
          _bulkIntakeOperationsUsecase,
@@ -134,10 +148,26 @@ class ChatUsecase {
     await _chatDataSource.clearAllChatData();
   }
 
-  // Message Handling with JSON-based Function Calling
+  // Message Handling with JSON-based Function Calling and Validation
   Future<List<ChatMessageEntity>> sendMessage(String message, String apiKey, String model, {List<ChatMessageEntity>? chatHistory}) async {
+    final startTime = DateTime.now();
     final userInfo = await getUserInfoForChat();
-    final response = await _chatDataSource.sendMessage(message, apiKey, model, userInfo: userInfo, chatHistory: chatHistory);
+    
+    // First attempt: normal prompt with validation and retry
+    final validatedResponse = await _sendMessageWithValidation(
+      message,
+      apiKey,
+      model,
+      userInfo: userInfo,
+      chatHistory: chatHistory,
+    );
+    String response = validatedResponse.response;
+    ValidationResult? validationResult = validatedResponse.validationResult;
+    
+    final responseTime = DateTime.now().difference(startTime);
+    
+    // Track chat interaction for analytics
+    await _trackChatInteraction(message, response, responseTime);
     
     final List<ChatMessageEntity> messages = [];
     
@@ -152,11 +182,31 @@ class ChatUsecase {
     messages.add(userMessage);
     
     // Parse function calls from AI response
-    final functionCalls = FunctionCallParser.parseFunctionCalls(response);
+    List<FunctionCallEntity> functionCalls = FunctionCallParser.parseFunctionCalls(response);
     _log.info('Found ${functionCalls.length} function calls in AI response');
     _log.info('Raw AI response: ${response.substring(0, response.length > 500 ? 500 : response.length)}...');
-    
 
+    // If no function calls were returned but the user intent looks like an action, retry in strict JSON-only mode
+    if (functionCalls.isEmpty && _isActionIntent(message)) {
+      _log.warning('No function call detected for action-intent message. Retrying with strict JSON-only mode.');
+      final strictValidatedResponse = await _sendMessageWithValidation(
+        message,
+        apiKey,
+        model,
+        userInfo: userInfo,
+        chatHistory: chatHistory,
+        strictFunctionCall: true,
+      );
+      final strictCalls = FunctionCallParser.parseFunctionCalls(strictValidatedResponse.response);
+      if (strictCalls.isNotEmpty) {
+        response = strictValidatedResponse.response;
+        validationResult = strictValidatedResponse.validationResult;
+        functionCalls = strictCalls;
+        _log.info('Strict mode succeeded: ${functionCalls.length} function call(s) parsed.');
+      } else {
+        _log.warning('Strict mode also returned no function calls. Proceeding with original assistant text.');
+      }
+    }
     
     // Execute function calls and get results
     List<FunctionCallResult> functionResults = [];
@@ -188,7 +238,7 @@ class ChatUsecase {
       // If we have function results, send them back to AI for a final response
       if (functionResults.any((result) => result.success)) {
         _log.info('Sending function results back to AI for final response');
-        final finalResponse = await _sendFunctionResultsToAI(
+        final finalValidatedResponse = await _sendFunctionResultsToAIWithValidation(
           message, 
           apiKey, 
           model, 
@@ -199,38 +249,30 @@ class ChatUsecase {
         );
         
         // Extract visible content from final AI response
-        final visibleContent = FunctionCallParser.extractVisibleContent(finalResponse);
+        final visibleContent = FunctionCallParser.extractVisibleContent(finalValidatedResponse.response);
+        validationResult = finalValidatedResponse.validationResult;
         
         // Create assistant message with final content
-        final assistantMessage = ChatMessageEntity(
-          id: IdGenerator.getUniqueID(),
-          content: visibleContent,
-          type: ChatMessageType.assistant,
-          timestamp: DateTime.now(),
-          isVisible: true,
+        final assistantMessage = createAssistantMessage(
+          visibleContent,
+          validationResult: validationResult,
         );
         messages.add(assistantMessage);
       } else {
         // If no successful function calls, use original response
         final visibleContent = FunctionCallParser.extractVisibleContent(response);
-        final assistantMessage = ChatMessageEntity(
-          id: IdGenerator.getUniqueID(),
-          content: visibleContent,
-          type: ChatMessageType.assistant,
-          timestamp: DateTime.now(),
-          isVisible: true,
+        final assistantMessage = createAssistantMessage(
+          visibleContent,
+          validationResult: validationResult,
         );
         messages.add(assistantMessage);
       }
     } else {
       // No function calls, use original response
       final visibleContent = FunctionCallParser.extractVisibleContent(response);
-      final assistantMessage = ChatMessageEntity(
-        id: IdGenerator.getUniqueID(),
-        content: visibleContent,
-        type: ChatMessageType.assistant,
-        timestamp: DateTime.now(),
-        isVisible: true,
+      final assistantMessage = createAssistantMessage(
+        visibleContent,
+        validationResult: validationResult,
       );
       messages.add(assistantMessage);
     }
@@ -240,6 +282,234 @@ class ChatUsecase {
       await _maybeUpdateSummaryAndFacts([...?chatHistory, ...messages]);
     } catch (_) {}
     return messages;
+  }
+
+  /// Sends message with validation and retry mechanism
+  Future<ValidatedResponse> _sendMessageWithValidation(
+    String message,
+    String apiKey,
+    String model, {
+    String? userInfo,
+    List<ChatMessageEntity>? chatHistory,
+    bool strictFunctionCall = false,
+  }) async {
+    String? lastResponse;
+    ValidationResult? lastValidationResult;
+    
+    for (int attempt = 0; attempt < maxRetryAttempts; attempt++) {
+      try {
+        // Send message to AI
+        final response = await _chatDataSource.sendMessage(
+          message,
+          apiKey,
+          model,
+          userInfo: userInfo,
+          chatHistory: chatHistory,
+          strictFunctionCall: strictFunctionCall,
+        );
+        
+        // Validate response
+        final validationResult = _validator.validateResponse(response);
+        lastValidationResult = validationResult;
+        
+        // Log validation result for analysis
+        await _logValidationResult(validationResult, response, attempt + 1);
+        
+        // Handle validation result
+        if (validationResult.isValid) {
+          // Use corrected response if available, otherwise original
+          final finalResponse = validationResult.correctedResponse ?? response;
+          _log.info('Response validation passed on attempt ${attempt + 1}');
+          return ValidatedResponse(
+            response: finalResponse,
+            validationResult: validationResult,
+          );
+        } else if (validationResult.severity == ValidationSeverity.critical) {
+          // Critical validation failure - retry
+          _log.warning('Critical validation failure on attempt ${attempt + 1}: ${validationResult.issues}');
+          lastResponse = response;
+          
+          if (attempt < maxRetryAttempts - 1) {
+            await Future.delayed(retryDelay);
+            continue;
+          }
+        } else if (validationResult.severity == ValidationSeverity.error) {
+          // Error level - retry but could fall back to corrected response
+          _log.warning('Validation error on attempt ${attempt + 1}: ${validationResult.issues}');
+          lastResponse = response;
+          
+          if (attempt < maxRetryAttempts - 1) {
+            await Future.delayed(retryDelay);
+            continue;
+          } else {
+            // Last attempt - use corrected response if available
+            return ValidatedResponse(
+              response: validationResult.correctedResponse ?? response,
+              validationResult: validationResult,
+            );
+          }
+        } else {
+          // Warning or info level - use corrected response or original
+          _log.info('Validation warning on attempt ${attempt + 1}: ${validationResult.issues}');
+          return ValidatedResponse(
+            response: validationResult.correctedResponse ?? response,
+            validationResult: validationResult,
+          );
+        }
+      } catch (e) {
+        _log.severe('Error sending message on attempt ${attempt + 1}: $e');
+        if (attempt == maxRetryAttempts - 1) {
+          rethrow;
+        }
+        await Future.delayed(retryDelay);
+      }
+    }
+    
+    // All retries failed - handle gracefully
+    if (lastResponse != null) {
+      _log.warning('All validation retries failed, using last response with user-friendly error handling');
+      final handledResponse = _handleValidationFailure(lastResponse, lastValidationResult);
+      return ValidatedResponse(
+        response: handledResponse,
+        validationResult: lastValidationResult ?? ValidationResult(
+          isValid: false,
+          issues: [ValidationIssue.incompleteResponse],
+          severity: ValidationSeverity.error,
+        ),
+      );
+    }
+    
+    throw ValidationException(
+      'Failed to get valid response after $maxRetryAttempts attempts',
+      ValidationSeverity.critical,
+      lastValidationResult?.issues ?? [],
+    );
+  }
+
+  /// Logs validation results for analysis
+  Future<void> _logValidationResult(
+    ValidationResult validationResult,
+    String response,
+    int attemptNumber,
+  ) async {
+    try {
+      final validationData = {
+        'is_valid': validationResult.isValid,
+        'severity': validationResult.severity.name,
+        'issues': validationResult.issues.map((issue) => issue.name).toList(),
+        'response_length': response.length,
+        'attempt_number': attemptNumber,
+        'has_corrected_response': validationResult.correctedResponse != null,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      await _logisticsTrackingUsecase.trackUserAction(
+        LogisticsEventType.chatInteraction,
+        validationData,
+        metadata: {
+          'validation_event': true,
+          'component': 'llm_response_validator',
+        },
+      );
+    } catch (e) {
+      _log.warning('Failed to log validation result: $e');
+      // Don't let logging failures affect the main flow
+    }
+  }
+
+  /// Handles validation failure with user-friendly error messages
+  String _handleValidationFailure(String originalResponse, ValidationResult? validationResult) {
+    if (validationResult == null) {
+      return originalResponse;
+    }
+
+    final buffer = StringBuffer();
+    
+    // Use corrected response if available
+    if (validationResult.correctedResponse != null) {
+      buffer.write(validationResult.correctedResponse!);
+    } else {
+      buffer.write(originalResponse);
+    }
+
+    // Add user-friendly validation warnings
+    if (validationResult.issues.isNotEmpty) {
+      buffer.write('\n\n---\n');
+      buffer.write('⚠️ **Response Quality Notice**: ');
+      
+      final issueMessages = <String>[];
+      for (final issue in validationResult.issues) {
+        switch (issue) {
+          case ValidationIssue.responseTooLarge:
+            issueMessages.add('Response was truncated for readability');
+            break;
+          case ValidationIssue.missingNutritionInfo:
+            issueMessages.add('Some nutrition information may be incomplete');
+            break;
+          case ValidationIssue.unrealisticCalories:
+            issueMessages.add('Please verify calorie values seem reasonable');
+            break;
+          case ValidationIssue.incompleteResponse:
+            issueMessages.add('Response may be incomplete');
+            break;
+          case ValidationIssue.formatError:
+            issueMessages.add('Response formatting may have minor issues');
+            break;
+          case ValidationIssue.invalidWeight:
+            issueMessages.add('Weight value seems invalid');
+            break;
+          case ValidationIssue.invalidBMI:
+            issueMessages.add('BMI calculation seems invalid');
+            break;
+          case ValidationIssue.unrealisticExerciseCalories:
+            issueMessages.add('Exercise calorie values seem unrealistic');
+            break;
+          case ValidationIssue.missingRequiredData:
+            issueMessages.add('Some required data is missing');
+            break;
+          case ValidationIssue.dataCorruption:
+            issueMessages.add('Data may be corrupted');
+            break;
+        }
+      }
+      
+      buffer.write(issueMessages.join(', '));
+      buffer.write('.');
+    }
+
+    return buffer.toString();
+  }
+
+  /// Tracks chat interaction for analytics
+  Future<void> _trackChatInteraction(String message, String response, Duration responseTime) async {
+    try {
+      await _logisticsTrackingUsecase.trackChatInteraction(
+        message,
+        response,
+        responseTime,
+        additionalMetadata: {
+          'has_validation': true,
+          'response_length': response.length,
+          'message_length': message.length,
+        },
+      );
+    } catch (e) {
+      _log.warning('Failed to track chat interaction: $e');
+      // Don't let tracking failures affect the main flow
+    }
+  }
+
+  // Heuristic: does the user ask to perform an action that requires a function?
+  bool _isActionIntent(String text) {
+    final t = text.toLowerCase();
+    // Common verbs indicating diary actions
+    final keywords = [
+      'add ', 'log ', 'record ', 'track ', 'insert ', 'create ',
+      'delete ', 'remove ', 'clear ', 'erase ',
+      'update ', 'edit ', 'change ', 'modify ', 'move ', 'copy ',
+      'get ', 'show ', 'list ', 'fetch ', 'read ', 'history ', 'diary ', 'progress ', 'entries ', 'activities ', 'exercise '
+    ];
+    return keywords.any((k) => t.contains(k));
   }
 
   /// Formats function call for display in debug mode
@@ -274,7 +544,86 @@ class ChatUsecase {
     );
   }
 
-  /// Sends function results back to AI for a final response
+  ChatMessageEntity createAssistantMessage(
+    String content, {
+    ValidationResult? validationResult,
+    Map<String, dynamic>? functionData,
+  }) {
+    return ChatMessageEntity(
+      id: IdGenerator.getUniqueID(),
+      content: content,
+      type: ChatMessageType.assistant,
+      timestamp: DateTime.now(),
+      isVisible: true,
+      validationResult: validationResult,
+      hasValidationFailure: validationResult != null && !validationResult.isValid,
+      functionData: functionData,
+    );
+  }
+
+  /// Sends function results back to AI for a final response with validation
+  Future<ValidatedResponse> _sendFunctionResultsToAIWithValidation(
+    String originalMessage,
+    String apiKey,
+    String model,
+    List<FunctionCallEntity> functionCalls,
+    List<FunctionCallResult> functionResults,
+    {String? userInfo, List<ChatMessageEntity>? chatHistory}
+  ) async {
+    for (int attempt = 0; attempt < maxRetryAttempts; attempt++) {
+      try {
+        final response = await _sendFunctionResultsToAI(
+          originalMessage,
+          apiKey,
+          model,
+          functionCalls,
+          functionResults,
+          userInfo: userInfo,
+          chatHistory: chatHistory,
+        );
+
+        // Validate the final response
+        final validationResult = _validator.validateResponse(response);
+        
+        // Log validation result
+        await _logValidationResult(validationResult, response, attempt + 1);
+
+        if (validationResult.isValid || attempt == maxRetryAttempts - 1) {
+          // Use corrected response if available, otherwise original
+          return ValidatedResponse(
+            response: validationResult.correctedResponse ?? response,
+            validationResult: validationResult,
+          );
+        } else if (validationResult.severity == ValidationSeverity.critical ||
+                   validationResult.severity == ValidationSeverity.error) {
+          _log.warning('Function result response validation failed on attempt ${attempt + 1}: ${validationResult.issues}');
+          if (attempt < maxRetryAttempts - 1) {
+            await Future.delayed(retryDelay);
+            continue;
+          }
+        }
+
+        return ValidatedResponse(
+          response: validationResult.correctedResponse ?? response,
+          validationResult: validationResult,
+        );
+      } catch (e) {
+        _log.severe('Error sending function results to AI on attempt ${attempt + 1}: $e');
+        if (attempt == maxRetryAttempts - 1) {
+          rethrow;
+        }
+        await Future.delayed(retryDelay);
+      }
+    }
+
+    throw ValidationException(
+      'Failed to get valid function result response after $maxRetryAttempts attempts',
+      ValidationSeverity.critical,
+      [],
+    );
+  }
+
+  /// Sends function results back to AI for a final response (original method)
   Future<String> _sendFunctionResultsToAI(
     String originalMessage,
     String apiKey,

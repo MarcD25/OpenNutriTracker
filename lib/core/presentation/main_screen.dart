@@ -12,6 +12,7 @@ import 'package:opennutritracker/core/utils/locator.dart';
 import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/diary_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/calendar_day_bloc.dart';
+import 'package:opennutritracker/features/weight_checkin/presentation/screens/weight_checkin_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -31,12 +32,14 @@ class _MainScreenState extends State<MainScreen> {
     _bodyPages = [
       const HomePage(),
       const DiaryPage(),
+      const WeightCheckinScreen(),
       const ChatScreen(),
       const ProfilePage(),
     ];
     _appbarPages = [
       const HomeAppbar(),
       MainAppbar(title: S.of(context).diaryLabel, iconData: Icons.book),
+      MainAppbar(title: 'Weight', iconData: Icons.monitor_weight),
       MainAppbar(title: S.of(context).chatLabel, iconData: Icons.chat_bubble),
       MainAppbar(
           title: S.of(context).profileLabel, iconData: Icons.account_circle)
@@ -77,11 +80,16 @@ class _MainScreenState extends State<MainScreen> {
               label: S.of(context).diaryLabel),
           NavigationDestination(
               icon: _selectedPageIndex == 2
+                  ? const Icon(Icons.monitor_weight)
+                  : const Icon(Icons.monitor_weight_outlined),
+              label: 'Weight'),
+          NavigationDestination(
+              icon: _selectedPageIndex == 3
                   ? const Icon(Icons.chat_bubble)
                   : const Icon(Icons.chat_bubble_outlined),
               label: S.of(context).chatLabel),
           NavigationDestination(
-              icon: _selectedPageIndex == 3
+              icon: _selectedPageIndex == 4
                   ? const Icon(Icons.account_circle)
                   : const Icon(Icons.account_circle_outlined),
               label: S.of(context).profileLabel)

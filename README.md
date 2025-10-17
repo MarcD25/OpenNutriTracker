@@ -36,6 +36,14 @@ This is a fork of the original OpenNutriTracker project with enhanced features i
 - **Debug Mode:** Toggle to view AI function calls and debug information
 - **Error Handling:** Robust error handling with user-friendly retry mechanisms
 
+### Latest Enhancements
+- **📊 Logistics Tracking System:** Background tracking of user interactions and app usage patterns for performance analysis and user behavior insights
+- **✅ LLM Response Validation:** Intelligent validation of AI responses to ensure accuracy, completeness, and believability of nutrition advice
+- **📋 Enhanced Table Rendering:** Improved markdown table display with horizontal scrolling and sticky headers for better data visualization
+- **⚖️ BMI-Specific Calorie Goals:** Personalized calorie recommendations based on BMI categories with automatic adjustments for different health goals
+- **🏃 Exercise Calorie Tracking:** Comprehensive exercise logging with net calorie calculation (TDEE + exercise - food intake) for accurate daily balance
+- **📈 Weight Check-in System:** Scheduled weight tracking with customizable frequencies, progress visualization, and automatic BMI updates
+
 ## Privacy
 - **Data Encryption**: All collected user data is encrypted and stored locally on your device
 - **Minimal Data Collection**: OpenNutriTracker only collects the necessary information required for tracking nutrition and providing personalized insights. Your data will not be shared with third parties without your consent.
@@ -91,6 +99,19 @@ This project follows Clean Architecture principles with the following structure:
 - **Domain Layer**: Entities, Use Cases, Services
 - **Presentation Layer**: BLoC pattern, Widgets, Screens
 
+## Documentation
+
+### User Documentation
+- [Enhanced Features User Guide](docs/user_guide_enhancements.md) - Comprehensive guide for new features
+- [API Documentation](docs/api_documentation.md) - Technical API reference for developers
+
+### Technical Documentation
+- [Integration Testing Summary](docs/integration_testing_summary.md) - Testing results and validation
+- [Performance Optimizations](docs/performance_optimizations.md) - Performance improvements and monitoring
+- [Comprehensive Error Handling](docs/comprehensive_error_handling.md) - Error handling and recovery systems
+- [Notification System](docs/notification_system.md) - Cross-platform notification implementation
+- [Table Markdown Enhancement](docs/table_markdown_enhancement.md) - Enhanced table rendering system
+
 ## Contributing
 Contributions to OpenNutriTracker are welcome! If you find any issues or have suggestions for new features, please open an issue or submit a pull request. Make sure to follow the project's code style and guidelines.
 
@@ -99,6 +120,7 @@ Contributions to OpenNutriTracker are welcome! If you find any issues or have su
 - Write tests for new features
 - Update documentation as needed
 - Ensure all API keys are properly secured
+- Review the [API Documentation](docs/api_documentation.md) for implementation details
 
 ## Disclaimer
 OpenNutriTracker is not a medical application. All data provided is not validated and should be used with caution. Please maintain a healthy lifestyle and consult a professional if you have any problems. Use during illness, pregnancy or lactation is not recommended.

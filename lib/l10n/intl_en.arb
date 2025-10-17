@@ -106,8 +106,8 @@
   "itemDeletedSnackbar": "Item deleted",
   "copyDialogTitle": "Which meal type do you want to copy to?",
   "copyOrDeleteTimeDialogTitle": "What do you want to do?",
-  "copyOrDeleteTimeDialogContent": "With \"Copy to today\" you can copy the meal to today. With \"Delete\" you can delete the meal.",
-  "dialogCopyLabel": "Copy to today",
+  "copyOrDeleteTimeDialogContent": "With \"Copy to another day\" you can copy the meal to another day. With \"Delete\" you can delete the meal.",
+  "dialogCopyLabel": "Copy to another day",
   "dialogDeleteLabel": "DELETE",
 
   "deleteAllLabel": "Delete all",
@@ -477,5 +477,15 @@
   "chatApiKeyViewConfirm": "View API Key",
   "chatApiKeyViewConfirmText": "This will temporarily show your full API key. Be careful not to share it.",
   "chatApiKeyCopied": "API key copied to clipboard",
-  "chatApiKeyChanged": "API key changed successfully"
+  "chatApiKeyChanged": "API key changed successfully",
+  "netCalorieTrackingLabel": "Net Calorie Tracking",
+  "baseTDEELabel": "Base TDEE",
+  "tdeeWithExerciseLabel": "TDEE + Exercise",
+  "netRemainingLabel": "Net Remaining",
+  "notifications": "Notifications",
+  "notificationsEnabled": "Notifications are enabled",
+  "notificationsDisabled": "Notifications are disabled",
+  "notificationPermissionTitle": "Notification Permission Required",
+  "notificationPermissionMessage": "To receive weight check-in reminders, please enable notifications in your device settings.",
+  "ok": "OK"
 }

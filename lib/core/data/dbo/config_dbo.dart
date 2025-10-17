@@ -26,10 +26,14 @@ class ConfigDBO extends HiveObject {
   double? userProteinGoalPct;
   @HiveField(8)
   double? userFatGoalPct;
+  @HiveField(9)
+  String? checkinFrequency;
+  @HiveField(10)
+  String? lastCheckinDate;
 
   ConfigDBO(this.hasAcceptedDisclaimer, this.hasAcceptedPolicy,
       this.hasAcceptedSendAnonymousData, this.selectedAppTheme,
-      {this.usesImperialUnits = false, this.userKcalAdjustment});
+      {this.usesImperialUnits = false, this.userKcalAdjustment, this.checkinFrequency, this.lastCheckinDate});
 
   factory ConfigDBO.empty() =>
       ConfigDBO(false, false, false, AppThemeDBO.system);

@@ -58,5 +58,11 @@
 	<string>Camera permission is required for barcode scanning.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
     <string>Used for exporting data.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app uses notifications to remind you about weight check-ins to help track your health progress.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+	</array>
 </dict>
 </plist>

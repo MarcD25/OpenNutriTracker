@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:opennutritracker/core/domain/entity/physical_activity_entity.dart';
+import 'package:opennutritracker/core/domain/entity/user_entity.dart';
 import 'package:opennutritracker/features/activity_detail/presentation/bloc/activity_detail_bloc.dart';
+import 'package:opennutritracker/features/activity_detail/presentation/widget/exercise_calorie_input_widget.dart';
 import 'package:opennutritracker/generated/l10n.dart';
 
 class ActivityDetailBottomSheet extends StatefulWidget {
-  final Function(BuildContext) onAddButtonPressed;
+  final Function(BuildContext, double, bool) onAddButtonPressed;
   final PhysicalActivityEntity activityEntity;
   final TextEditingController quantityTextController;
   final ActivityDetailBloc activityDetailBloc;
+  final UserEntity userEntity;
 
   const ActivityDetailBottomSheet(
       {super.key,
       required this.onAddButtonPressed,
       required this.quantityTextController,
       required this.activityEntity,
-      required this.activityDetailBloc});
+      required this.activityDetailBloc,
+      required this.userEntity});
 
   @override
   State<ActivityDetailBottomSheet> createState() =>
@@ -23,6 +27,29 @@ class ActivityDetailBottomSheet extends StatefulWidget {
 }
 
 class _ActivityDetailBottomSheetState extends State<ActivityDetailBottomSheet> {
+  late TextEditingController _calorieController;
+  double _currentCalories = 0.0;
+  bool _isManualCalorieEntry = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _calorieController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _calorieController.dispose();
+    super.dispose();
+  }
+
+  void _onCaloriesChanged(double calories, bool isManual) {
+    setState(() {
+      _currentCalories = calories;
+      _isManualCalorieEntry = isManual;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return BottomSheet(
@@ -48,45 +75,19 @@ class _ActivityDetailBottomSheetState extends State<ActivityDetailBottomSheet> {
                 padding: const EdgeInsets.fromLTRB(16.0, 32.0, 16.0, 8.0),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: widget.quantityTextController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: <TextInputFormatter>[
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9]+[,.]{0,1}[0-9]*')),
-                              TextInputFormatter.withFunction(
-                                (oldValue, newValue) => newValue.copyWith(
-                                  text: newValue.text.replaceAll(',', '.'),
-                                ),
-                              ),
-                            ],
-                            decoration: InputDecoration(
-                              border: const OutlineInputBorder(),
-                              labelText: S.of(context).quantityLabel,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                        Expanded(
-                            child: DropdownButtonFormField(
-                          decoration: InputDecoration(
-                              border: const OutlineInputBorder(),
-                              labelText: S.of(context).unitLabel),
-                          items: const <DropdownMenuItem<String>>[
-                            DropdownMenuItem(child: Text('min'))
-                          ],
-                          onChanged: (Object? value) {},
-                        ))
-                      ],
+                    ExerciseCalorieInputWidget(
+                      durationController: widget.quantityTextController,
+                      calorieController: _calorieController,
+                      activity: widget.activityEntity,
+                      user: widget.userEntity,
+                      onCaloriesChanged: _onCaloriesChanged,
                     ),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity, // Make button full width
                       child: ElevatedButton.icon(
                           onPressed: () {
-                            widget.onAddButtonPressed(context);
+                            widget.onAddButtonPressed(context, _currentCalories, _isManualCalorieEntry);
                           },
                           style: ElevatedButton.styleFrom(
                             foregroundColor: Theme.of(context)

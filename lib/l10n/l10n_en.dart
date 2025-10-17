@@ -334,10 +334,10 @@ class SEn extends S {
   String get copyOrDeleteTimeDialogTitle => 'What do you want to do?';
 
   @override
-  String get copyOrDeleteTimeDialogContent => 'With \"Copy to today\" you can copy the meal to today. With \"Delete\" you can delete the meal.';
+  String get copyOrDeleteTimeDialogContent => 'With \"Copy to another day\" you can copy the meal to another day. With \"Delete\" you can delete the meal.';
 
   @override
-  String get dialogCopyLabel => 'Copy to today';
+  String get dialogCopyLabel => 'Copy to another day';
 
   @override
   String get dialogDeleteLabel => 'DELETE';
@@ -1440,4 +1440,34 @@ class SEn extends S {
 
   @override
   String get chatApiKeyChanged => 'API key changed successfully';
+
+  @override
+  String get netCalorieTrackingLabel => 'Net Calorie Tracking';
+
+  @override
+  String get baseTDEELabel => 'Base TDEE';
+
+  @override
+  String get tdeeWithExerciseLabel => 'TDEE + Exercise';
+
+  @override
+  String get netRemainingLabel => 'Net Remaining';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get notificationsEnabled => 'Notifications are enabled';
+
+  @override
+  String get notificationsDisabled => 'Notifications are disabled';
+
+  @override
+  String get notificationPermissionTitle => 'Notification Permission Required';
+
+  @override
+  String get notificationPermissionMessage => 'To receive weight check-in reminders, please enable notifications in your device settings.';
+
+  @override
+  String get ok => 'OK';
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:opennutritracker/core/presentation/mixins/logistics_tracking_mixin.dart';
+import 'package:opennutritracker/core/domain/entity/logistics_event_entity.dart';
 import 'package:opennutritracker/core/utils/locator.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart';
 import 'package:opennutritracker/features/chat/presentation/bloc/chat_bloc.dart';
@@ -15,17 +17,24 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with LogisticsTrackingMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late ChatBloc _chatBloc;
   bool _initialScrollPositioned = false;
+  DateTime? _messageStartTime;
 
   @override
   void initState() {
     super.initState();
     _chatBloc = locator<ChatBloc>();
     _chatBloc.add(LoadChatEvent());
+    
+    // Track screen view
+    trackScreenView('ChatScreen', additionalData: {
+      'screen_category': 'ai_interaction',
+      'is_initial_load': true,
+    });
   }
 
   @override
@@ -51,6 +60,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     // Debug toggle button
                     IconButton(
                       onPressed: () {
+                        trackButtonPress('debug_toggle', 'ChatScreen', additionalData: {
+                          'debug_mode_enabled': !state.showDebugMessages,
+                        });
                         _chatBloc.add(ToggleDebugModeEvent());
                       },
                       icon: Icon(
@@ -61,6 +73,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     PopupMenuButton<String>(
                       onSelected: (value) {
+                        trackButtonPress('chat_menu_$value', 'ChatScreen');
                         if (value == 'clear') {
                           _showClearHistoryDialog();
                         } else if (value == 'settings') {
@@ -122,24 +135,84 @@ class _ChatScreenState extends State<ChatScreen> {
         bloc: _chatBloc,
         listener: (context, state) {
           if (state is ChatApiKeySaved) {
+            trackAction(
+              LogisticsEventType.settingsChanged,
+              {
+                'setting_key': 'chat_api_key',
+                'action': 'saved',
+                'screen_name': 'ChatScreen',
+              },
+              metadata: {
+                'action_type': 'api_key_management',
+                'configuration': true,
+              },
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(S.of(context).chatApiKeySuccess)),
             );
             _chatBloc.add(LoadChatEvent());
           } else if (state is ChatApiKeyRemoved) {
+            trackAction(
+              LogisticsEventType.settingsChanged,
+              {
+                'setting_key': 'chat_api_key',
+                'action': 'removed',
+                'screen_name': 'ChatScreen',
+              },
+              metadata: {
+                'action_type': 'api_key_management',
+                'configuration': true,
+              },
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(S.of(context).chatApiKeyRemoved)),
             );
             _chatBloc.add(LoadChatEvent());
           } else if (state is ChatHistoryCleared) {
+            trackAction(
+              LogisticsEventType.userAction,
+              {
+                'action': 'chat_history_cleared',
+                'screen_name': 'ChatScreen',
+              },
+              metadata: {
+                'action_type': 'data_management',
+                'chat_interaction': true,
+              },
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(S.of(context).chatClearHistorySuccess)),
             );
           } else if (state is ChatError) {
+            trackError(
+              'chat_error',
+              state.message,
+              'ChatScreen',
+              additionalData: {
+                'error_context': 'chat_interaction',
+              },
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message)),
             );
           } else if (state is ChatLoaded && state.messages.isNotEmpty) {
+            // Track successful message response if we have a start time
+            if (_messageStartTime != null) {
+              final responseTime = DateTime.now().difference(_messageStartTime!);
+              final lastMessage = state.messages.last;
+              if (lastMessage.type == ChatMessageType.assistant) {
+                trackChatInteraction(
+                  'user_message', // We don't store actual message for privacy
+                  lastMessage.content,
+                  responseTime,
+                  additionalData: {
+                    'message_count': state.messages.length,
+                    'screen_name': 'ChatScreen',
+                  },
+                );
+              }
+              _messageStartTime = null;
+            }
             // On first load, jump to bottom without animation.
             // Afterwards, animate to bottom on updates.
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -233,6 +306,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ChatMessageWidget(
                   message: message,
                   onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
+                  onRetry: () => _retryMessage(message),
                   showDebugMessages: state.showDebugMessages,
                 );
               },
@@ -314,6 +388,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ChatMessageWidget(
                   message: message,
                   onDelete: () => _chatBloc.add(DeleteMessageEvent(message.id)),
+                  onRetry: () => _retryMessage(message),
                   showDebugMessages: state.showDebugMessages,
                 );
               },
@@ -387,6 +462,11 @@ class _ChatScreenState extends State<ChatScreen> {
   void _sendMessage() {
     final message = _messageController.text.trim();
     if (message.isNotEmpty) {
+      _messageStartTime = DateTime.now();
+      trackButtonPress('send_message', 'ChatScreen', additionalData: {
+        'message_length': message.length,
+        'has_content': true,
+      });
       _chatBloc.add(SendMessageEvent(message));
       _messageController.clear();
       _scrollToBottom();
@@ -406,6 +486,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showChatSettings() {
+    trackButtonPress('show_chat_settings', 'ChatScreen');
     showDialog(
       context: context,
       builder: (context) => const ChatSettingsDialog(),
@@ -459,5 +540,28 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
+  }
+
+  void _retryMessage(ChatMessageEntity message) {
+    // Find the user message that preceded this assistant message
+    final state = _chatBloc.state;
+    if (state is ChatLoaded || state is ChatError) {
+      final messages = state is ChatLoaded ? state.messages : (state as ChatError).messages;
+      final messageIndex = messages.indexOf(message);
+      
+      if (messageIndex > 0) {
+        final previousMessage = messages[messageIndex - 1];
+        if (previousMessage.type == ChatMessageType.user) {
+          trackButtonPress('retry_message', 'ChatScreen', additionalData: {
+            'message_id': message.id,
+            'has_validation_issues': message.hasValidationFailure,
+            'validation_severity': message.validationResult?.severity.name,
+          });
+          
+          // Resend the user message
+          _chatBloc.add(SendMessageEvent(previousMessage.content));
+        }
+      }
+    }
   }
 } 

@@ -147,6 +147,13 @@ class ChatDataSource {
           (e) => e.toString() == json['type'],
         ),
         timestamp: DateTime.parse(json['timestamp']),
+        isVisible: json['isVisible'] ?? true,
+        functionData: json['functionData'] != null 
+            ? Map<String, dynamic>.from(json['functionData']) 
+            : null,
+        // Note: ValidationResult is not persisted as it's runtime information
+        validationResult: null,
+        hasValidationFailure: false,
       )).toList();
     } catch (e) {
       _log.warning('Error parsing chat history: $e');
@@ -161,6 +168,9 @@ class ChatDataSource {
       'content': msg.content,
       'type': msg.type.toString(),
       'timestamp': msg.timestamp.toIso8601String(),
+      'isVisible': msg.isVisible,
+      'functionData': msg.functionData,
+      // Note: ValidationResult is not persisted as it's runtime information
     }).toList());
     await prefs.setString(_chatHistoryKey, historyJson);
     _log.info('Saved chat history with ${messages.length} messages');
@@ -179,7 +189,14 @@ class ChatDataSource {
     _log.info('Cleared all chat data');
   }
 
-  Future<String> sendMessage(String message, String apiKey, String model, {String? userInfo, List<ChatMessageEntity>? chatHistory}) async {
+  Future<String> sendMessage(
+    String message,
+    String apiKey,
+    String model, {
+    String? userInfo,
+    List<ChatMessageEntity>? chatHistory,
+    bool strictFunctionCall = false,
+  }) async {
     try {
       _log.info('Sending message to OpenRouter with model: $model');
       _log.info('API key length: ${apiKey.length}');
@@ -203,17 +220,17 @@ class ChatDataSource {
 
       // Build messages array with system message, chat history, and current message
       final messages = [
-                  {
-            'role': 'system',
-            'content': '''You are a helpful nutrition assistant for the OpenNutriTracker app.
+        {
+          'role': 'system',
+          'content': '''You are a helpful nutrition assistant for the OpenNutriTracker app.
 
-**IMPORTANT: You MUST use function calls for ANY data retrieval or diary operations!**
+${strictFunctionCall ? '**STRICT MODE: You must respond with ONLY a single JSON object for a function call. NO prose before or after. NO markdown other than the JSON itself.**\n\n' : ''}**IMPORTANT: You MUST use function calls for ANY data retrieval or diary operations!**
 
 When the user asks for information about their diary, progress, or food entries, you MUST use function calls to get the data first. Do NOT provide data directly without using function calls.
 
 Use JSON function calls in this format:
 
-\`\`\`json
+${strictFunctionCall ? '' : '```json'}
 {
   "type": "function_call",
   "function": "function_name",
@@ -222,7 +239,7 @@ Use JSON function calls in this format:
     "param2": "value2"
   }
 }
-\`\`\`
+${strictFunctionCall ? '' : '```'}
 
 **Available Functions:**
 
@@ -302,12 +319,12 @@ Use JSON function calls in this format:
   * "earliest" or "first" - Get the earliest entry
   * "latest" or "last" - Get the latest entry
 
-**Examples:**
+${strictFunctionCall ? '' : '**Examples:**'}
 
-User: "I had a banana for breakfast"
+${strictFunctionCall ? '' : '''User: "I had a banana for breakfast"
 Response: "I've added a banana to your breakfast!
 
-\`\`\`json
+```json
 {
   "type": "function_call",
   "function": "add_food_entry",
@@ -325,12 +342,12 @@ Response: "I've added a banana to your breakfast!
     "date": "today"
   }
 }
-\`\`\`"
+```"'''}
 
-User: "Delete all my breakfast entries from yesterday"
+${strictFunctionCall ? '' : '''User: "Delete all my breakfast entries from yesterday"
 Response: "I've removed all your breakfast entries from yesterday.
 
-\`\`\`json
+```json
 {
   "type": "function_call",
   "function": "delete_entries_by_meal_type",
@@ -339,14 +356,14 @@ Response: "I've removed all your breakfast entries from yesterday.
     "date": "yesterday"
   }
 }
-\`\`\`"
+```"'''}
 
-**Current Date Awareness:**
+${strictFunctionCall ? '' : '**Current Date Awareness:**'}
 - Today's date: ${DateTime.now().toString().split(' ')[0]}
 - Always consider the date when adding/reading/editing food entries
 - When users mention "today", "yesterday", "tomorrow", or specific dates, use that date for diary operations
 
-**Diary Data Access:**
+${strictFunctionCall ? '' : '**Diary Data Access:**'}
 You now have access to the user's complete diary data including:
 - Food entries for any date
 - Daily progress summaries
@@ -356,20 +373,20 @@ You now have access to the user's complete diary data including:
 
 Use this data to provide personalized insights, identify patterns, suggest improvements, and help users understand their nutrition habits.
 
-**Bulk Operations:**
+${strictFunctionCall ? '' : '**Bulk Operations:**'}
 You can now perform mass operations on food entries:
 - **Mass Delete**: Delete all entries for specific dates, meal types, or date ranges
 - **Mass Edit**: Update multiple entries simultaneously (amount, meal type, unit)
 - **Mass Add**: Add multiple food entries at once
 
-**Date Range Support:**
+${strictFunctionCall ? '' : '**Date Range Support:**'}
 When adding food entries, you can specify date ranges:
 - Single dates: "today", "yesterday", "tomorrow", or specific dates
 - Date ranges: "[each June date: 1/6/2025 through 30/6/2025]"
 - Month ranges: "[each June date]" (adds to every day in June)
 - Week ranges: "[each day this week]"
 
-**Examples of bulk operations:**
+${strictFunctionCall ? '' : '**Examples of bulk operations:**'}
 - "Delete all breakfast entries for yesterday"
 - "Delete all entries for last week"
 - "Update all snack entries to have 50g amount"
@@ -380,13 +397,20 @@ When adding food entries, you can specify date ranges:
 - "Add breakfast for all days this month"
 - "Add meals for the entire week"
 
-${userInfo != null ? '''
+${strictFunctionCall ? '' : (userInfo != null ? '''
 **User Profile Information:**
 $userInfo
 
 Use this information to provide personalized nutrition advice and recommendations. Consider the user's age, gender, height, weight, BMI, activity level, and weight goals when making suggestions.
-''' : ''}
+''' : '')}
 
+${strictFunctionCall ? '''
+STRICT OUTPUT FORMAT (MANDATORY):
+- Respond with ONLY a single JSON object representing the function call.
+- Do NOT include any natural language or explanations.
+- Do NOT include Markdown fences; just the JSON object.
+- Choose the most appropriate function from the list and provide validated parameters.
+''' : '''
 **IMPORTANT RULES:**
 1. **ALWAYS use function calls** when the user asks for diary information, progress, or food data
 2. **NEVER provide data directly** without using function calls first
@@ -398,23 +422,24 @@ Use this information to provide personalized nutrition advice and recommendation
 8. Keep responses concise but informative
 9. Use proper Markdown formatting to make information easy to scan and understand
 10. Avoid using emojis in your responses as they do not display correctly in the app
+'''}
 
-Always be helpful, accurate, and encouraging. When discussing nutrition, provide evidence-based advice. If you're unsure about something, say so rather than guessing.
+${strictFunctionCall ? '' : 'Always be helpful, accurate, and encouraging. When discussing nutrition, provide evidence-based advice. If you\'re unsure about something, say so rather than guessing.'}
 
-${persistentSummary.isNotEmpty ? '''
+${strictFunctionCall ? '' : (persistentSummary.isNotEmpty ? '''
 PERSISTENT USER HABIT SUMMARY (for extra context; do not repeat verbatim):
 $persistentSummary
-''' : ''}
-${userInfo != null ? '''
+''' : '')}
+${strictFunctionCall ? '' : (userInfo != null ? '''
 USER PROFILE (for context):
 $userInfo
-''' : ''}
-${persistentFacts.isNotEmpty ? '''
+''' : '')}
+${strictFunctionCall ? '' : (persistentFacts.isNotEmpty ? '''
 PERSISTENT FACTS (short bullets you can rely on):
 $persistentFacts
-''' : ''}
+''' : '')}
 '''
-          }
+        }
       ];
 
       // Add chat history messages (excluding the current message to avoid duplication)
@@ -437,7 +462,7 @@ $persistentFacts
         'model': model,
         'messages': messages,
         'max_tokens': 10000,
-        'temperature': 0.7,
+        'temperature': strictFunctionCall ? 0.2 : 0.7,
       };
       
       _log.info('Request body: ${json.encode(requestBody)}');

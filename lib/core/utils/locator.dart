@@ -2,6 +2,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get_it/get_it.dart';
 import 'package:opennutritracker/core/data/data_source/config_data_source.dart';
 import 'package:opennutritracker/core/data/data_source/intake_data_source.dart';
+import 'package:opennutritracker/core/data/data_source/logistics_data_source.dart';
 import 'package:opennutritracker/core/data/data_source/physical_activity_data_source.dart';
 import 'package:opennutritracker/core/data/data_source/tracked_day_data_source.dart';
 import 'package:opennutritracker/core/data/data_source/user_activity_data_source.dart';
@@ -28,7 +29,13 @@ import 'package:opennutritracker/core/domain/usecase/get_physical_activity_useca
 import 'package:opennutritracker/core/domain/usecase/get_tracked_day_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/get_user_activity_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/get_user_usecase.dart';
+import 'package:opennutritracker/core/domain/usecase/logistics_tracking_usecase.dart';
 import 'package:opennutritracker/core/domain/usecase/update_intake_usecase.dart';
+import 'package:opennutritracker/features/weight_checkin/data/data_source/weight_checkin_data_source.dart';
+import 'package:opennutritracker/features/weight_checkin/domain/usecase/weight_checkin_usecase.dart';
+import 'package:opennutritracker/features/weight_checkin/domain/service/weight_checkin_notification_service.dart';
+import 'package:opennutritracker/features/weight_checkin/domain/service/weight_checkin_calendar_service.dart';
+import 'package:opennutritracker/features/weight_checkin/presentation/bloc/weight_checkin_bloc.dart';
 import 'package:opennutritracker/core/utils/env.dart';
 import 'package:opennutritracker/core/utils/hive_db_provider.dart';
 import 'package:opennutritracker/core/utils/ont_image_cache_manager.dart';
@@ -49,9 +56,17 @@ import 'package:opennutritracker/features/chat/data/data_source/chat_data_source
 import 'package:opennutritracker/features/chat/domain/usecase/chat_usecase.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/ai_food_entry_usecase.dart';
 import 'package:opennutritracker/features/chat/domain/usecase/chat_diary_data_usecase.dart';
+import 'package:opennutritracker/features/chat/domain/service/llm_response_validator.dart';
 import 'package:opennutritracker/features/chat/presentation/bloc/chat_bloc.dart';
+import 'package:opennutritracker/core/domain/service/calculation_cache_service.dart';
+import 'package:opennutritracker/core/domain/service/memory_management_service.dart';
+import 'package:opennutritracker/core/domain/service/error_handling_service.dart';
+import 'package:opennutritracker/core/domain/service/error_logging_service.dart';
+import 'package:opennutritracker/core/domain/service/graceful_degradation_service.dart';
+import 'package:opennutritracker/core/domain/service/recovery_options_service.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/calendar_day_bloc.dart';
 import 'package:opennutritracker/features/diary/presentation/bloc/diary_bloc.dart';
+import 'package:opennutritracker/features/diary/presentation/bloc/diary_calendar_bloc.dart';
 import 'package:opennutritracker/features/edit_meal/presentation/bloc/edit_meal_bloc.dart';
 import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart';
 import 'package:opennutritracker/features/meal_detail/presentation/bloc/meal_detail_bloc.dart';
@@ -96,10 +111,12 @@ Future<void> initLocator() async {
       locator(),
       locator(),
       locator(),
+      locator(),
       locator()));
   locator.registerLazySingleton(() => DiaryBloc(locator(), locator(), locator()));
   locator.registerLazySingleton(() => CalendarDayBloc(
       locator(), locator(), locator(), locator(), locator(), locator()));
+  locator.registerLazySingleton(() => DiaryCalendarBloc(locator()));
   locator.registerLazySingleton<ProfileBloc>(
       () => ProfileBloc(locator(), locator(), locator(), locator(), locator()));
   locator.registerLazySingleton(() =>
@@ -121,6 +138,7 @@ Future<void> initLocator() async {
   locator.registerFactory<FoodBloc>(() => FoodBloc(locator(), locator()));
   locator.registerFactory(() => RecentMealBloc(locator(), locator()));
   locator.registerFactory<ChatBloc>(() => ChatBloc(locator()));
+  locator.registerFactory<WeightCheckinBloc>(() => WeightCheckinBloc(locator()));
 
   // UseCases
   locator.registerLazySingleton<GetConfigUsecase>(
@@ -164,11 +182,36 @@ Future<void> initLocator() async {
       () => ExportDataUsecase(locator(), locator(), locator()));
   locator.registerLazySingleton(
       () => ImportDataUsecase(locator(), locator(), locator()));
-  locator.registerLazySingleton<ChatUsecase>(() => ChatUsecase(locator(), locator(), locator(), locator(), locator()));
+  locator.registerLazySingleton<LLMResponseValidator>(() => LLMResponseValidator());
+  locator.registerLazySingleton<ChatUsecase>(() => ChatUsecase(locator(), locator(), locator(), locator(), locator(), locator(), locator()));
   locator.registerLazySingleton<AIFoodEntryUsecase>(() => AIFoodEntryUsecase(
     locator(), locator(), locator(), locator()));
   locator.registerLazySingleton<ChatDiaryDataUsecase>(() => ChatDiaryDataUsecase(
     locator(), locator()));
+  locator.registerLazySingleton<LogisticsTrackingUsecase>(
+      () => LogisticsTrackingUsecase(locator()));
+  locator.registerLazySingleton<WeightCheckinNotificationService>(
+      () => WeightCheckinNotificationService());
+  locator.registerLazySingleton<WeightCheckinUsecase>(
+      () => WeightCheckinUsecase(locator(), locator()));
+  locator.registerLazySingleton<WeightCheckinCalendarService>(
+      () => WeightCheckinCalendarService(locator()));
+
+  // Performance Services
+  locator.registerLazySingleton<CalculationCacheService>(
+      () => CalculationCacheService()..init());
+  locator.registerLazySingleton<MemoryManagementService>(
+      () => MemoryManagementService()..init());
+
+  // Error Handling Services
+  locator.registerLazySingleton<ErrorHandlingService>(
+      () => ErrorHandlingService());
+  locator.registerLazySingleton<ErrorLoggingService>(
+      () => ErrorLoggingService());
+  locator.registerLazySingleton<GracefulDegradationService>(
+      () => GracefulDegradationService());
+  locator.registerLazySingleton<RecoveryOptionsService>(
+      () => RecoveryOptionsService());
 
   // Repositories
   locator.registerLazySingleton(() => ConfigRepository(locator()));
@@ -202,6 +245,10 @@ Future<void> initLocator() async {
   locator.registerLazySingleton<SpFdcDataSource>(() => SpFdcDataSource());
   locator.registerLazySingleton(
       () => TrackedDayDataSource(hiveDBProvider.trackedDayBox));
+  locator.registerLazySingleton<LogisticsDataSource>(
+      () => LogisticsDataSource(hiveDBProvider.logisticsBox));
+  locator.registerLazySingleton<WeightCheckinDataSource>(
+      () => WeightCheckinDataSource(hiveDBProvider));
 
   await _initializeConfig(locator());
 }

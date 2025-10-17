@@ -742,13 +742,13 @@ abstract class S {
   /// No description provided for @copyOrDeleteTimeDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'With \"Copy to today\" you can copy the meal to today. With \"Delete\" you can delete the meal.'**
+  /// **'With \"Copy to another day\" you can copy the meal to another day. With \"Delete\" you can delete the meal.'**
   String get copyOrDeleteTimeDialogContent;
 
   /// No description provided for @dialogCopyLabel.
   ///
   /// In en, this message translates to:
-  /// **'Copy to today'**
+  /// **'Copy to another day'**
   String get dialogCopyLabel;
 
   /// No description provided for @dialogDeleteLabel.
@@ -2946,6 +2946,66 @@ abstract class S {
   /// In en, this message translates to:
   /// **'API key changed successfully'**
   String get chatApiKeyChanged;
+
+  /// No description provided for @netCalorieTrackingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Calorie Tracking'**
+  String get netCalorieTrackingLabel;
+
+  /// No description provided for @baseTDEELabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base TDEE'**
+  String get baseTDEELabel;
+
+  /// No description provided for @tdeeWithExerciseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TDEE + Exercise'**
+  String get tdeeWithExerciseLabel;
+
+  /// No description provided for @netRemainingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Remaining'**
+  String get netRemainingLabel;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @notificationsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are enabled'**
+  String get notificationsEnabled;
+
+  /// No description provided for @notificationsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are disabled'**
+  String get notificationsDisabled;
+
+  /// No description provided for @notificationPermissionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Permission Required'**
+  String get notificationPermissionTitle;
+
+  /// No description provided for @notificationPermissionMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'To receive weight check-in reminders, please enable notifications in your device settings.'**
+  String get notificationPermissionMessage;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

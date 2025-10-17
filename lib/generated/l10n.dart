@@ -1121,10 +1121,10 @@ class S {
     );
   }
 
-  /// `DELETE`
+  /// `Delete`
   String get dialogDeleteLabel {
     return Intl.message(
-      'DELETE',
+      'Delete',
       name: 'dialogDeleteLabel',
       desc: '',
       args: [],

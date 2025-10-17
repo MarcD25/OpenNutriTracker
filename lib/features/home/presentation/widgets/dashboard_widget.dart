@@ -15,6 +15,9 @@ class DashboardWidget extends StatefulWidget {
   final double totalCarbsGoal;
   final double totalFatsGoal;
   final double totalProteinsGoal;
+  final double baseTDEE;
+  final double tdeeWithExercise;
+  final double netKcalRemaining;
 
   const DashboardWidget(
       {super.key,
@@ -27,7 +30,10 @@ class DashboardWidget extends StatefulWidget {
       required this.totalProteinsIntake,
       required this.totalCarbsGoal,
       required this.totalFatsGoal,
-      required this.totalProteinsGoal});
+      required this.totalProteinsGoal,
+      required this.baseTDEE,
+      required this.tdeeWithExercise,
+      required this.netKcalRemaining});
 
   @override
   State<DashboardWidget> createState() => _DashboardWidgetState();
@@ -141,6 +147,96 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                   ),
                 ],
               ),
+              // Net calorie information section
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Net Calorie Tracking',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              '${widget.baseTDEE.toInt()}',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Base TDEE',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '${widget.tdeeWithExercise.toInt()}',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'TDEE + Exercise',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '${widget.netKcalRemaining.toInt()}',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: widget.netKcalRemaining >= 0 
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Net Remaining',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Add explanation text to clarify the difference
+                    Text(
+                      'The main circle shows calories left from your daily goal (${widget.totalKcalDaily.toInt()}), while this section shows your total daily energy expenditure.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               MacroNutrientsView(
                   totalCarbsIntake: widget.totalCarbsIntake,
                   totalFatsIntake: widget.totalFatsIntake,

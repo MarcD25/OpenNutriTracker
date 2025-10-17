@@ -105,8 +105,8 @@
   "itemDeletedSnackbar": "Öğe silindi",
   "copyDialogTitle": "Hangi yemek türüne kopyalamak istiyorsunuz?",
   "copyOrDeleteTimeDialogTitle": "Ne yapmak istiyorsunuz?",
-  "copyOrDeleteTimeDialogContent": "\"Bugüne Kopyala\" ile yemeği bugüne kopyalayabilirsiniz. \"Sil\" ile yemeği silebilirsiniz.",
-  "dialogCopyLabel": "BUGÜNE KOPYALA",
+  "copyOrDeleteTimeDialogContent": "\"Başka güne kopyala\" ile yemeği başka bir güne kopyalayabilirsiniz. \"Sil\" ile yemeği silebilirsiniz.",
+  "dialogCopyLabel": "BAŞKA GÜNE KOPYALA",
   "dialogDeleteLabel": "SİL",
   "suppliedLabel": "tüketilen",
   "burnedLabel": "yakılan",
@@ -409,5 +409,9 @@
   "paSkiingGeneral": "kayak",
   "paSkiingGeneralDesc": "genel",
   "paSnowShovingModerate": "kar küreme",
-  "paSnowShovingModerateDesc": "elle, orta derecede çaba"
+  "paSnowShovingModerateDesc": "elle, orta derecede çaba",
+  "netCalorieTrackingLabel": "Net Kalori Takibi",
+  "baseTDEELabel": "Temel TDEE",
+  "tdeeWithExerciseLabel": "TDEE + Egzersiz",
+  "netRemainingLabel": "Net Kalan"
 }

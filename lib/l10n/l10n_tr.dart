@@ -334,10 +334,10 @@ class STr extends S {
   String get copyOrDeleteTimeDialogTitle => 'Ne yapmak istiyorsunuz?';
 
   @override
-  String get copyOrDeleteTimeDialogContent => '\"Bugüne Kopyala\" ile yemeği bugüne kopyalayabilirsiniz. \"Sil\" ile yemeği silebilirsiniz.';
+  String get copyOrDeleteTimeDialogContent => '\"Başka güne kopyala\" ile yemeği başka bir güne kopyalayabilirsiniz. \"Sil\" ile yemeği silebilirsiniz.';
 
   @override
-  String get dialogCopyLabel => 'BUGÜNE KOPYALA';
+  String get dialogCopyLabel => 'BAŞKA GÜNE KOPYALA';
 
   @override
   String get dialogDeleteLabel => 'SİL';
@@ -1440,4 +1440,34 @@ class STr extends S {
 
   @override
   String get chatApiKeyChanged => 'API key changed successfully';
+
+  @override
+  String get netCalorieTrackingLabel => 'Net Kalori Takibi';
+
+  @override
+  String get baseTDEELabel => 'Temel TDEE';
+
+  @override
+  String get tdeeWithExerciseLabel => 'TDEE + Egzersiz';
+
+  @override
+  String get netRemainingLabel => 'Net Kalan';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get notificationsEnabled => 'Notifications are enabled';
+
+  @override
+  String get notificationsDisabled => 'Notifications are disabled';
+
+  @override
+  String get notificationPermissionTitle => 'Notification Permission Required';
+
+  @override
+  String get notificationPermissionMessage => 'To receive weight check-in reminders, please enable notifications in your device settings.';
+
+  @override
+  String get ok => 'OK';
 }

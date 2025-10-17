@@ -32,6 +32,16 @@ class HomeLoadedState extends HomeState {
   final List<IntakeEntity> dinnerIntakeList;
   final List<IntakeEntity> snackIntakeList;
   final bool usesImperialUnits;
+  // Net calorie calculation fields
+  final double baseTDEE;
+  final double tdeeWithExercise;
+  final double netKcalRemaining;
+  // Weight check-in fields
+  final bool shouldShowWeightCheckin;
+  final WeightEntryEntity? lastWeightEntry;
+  final WeightTrend? weightTrend;
+  final CheckinFrequency checkinFrequency;
+  final DateTime? nextCheckinDate;
 
   const HomeLoadedState({
     required this.showDisclaimerDialog,
@@ -51,6 +61,14 @@ class HomeLoadedState extends HomeState {
     required this.dinnerIntakeList,
     required this.snackIntakeList,
     required this.usesImperialUnits,
+    required this.baseTDEE,
+    required this.tdeeWithExercise,
+    required this.netKcalRemaining,
+    required this.shouldShowWeightCheckin,
+    this.lastWeightEntry,
+    this.weightTrend,
+    required this.checkinFrequency,
+    this.nextCheckinDate,
   });
 
   @override
@@ -59,6 +77,14 @@ class HomeLoadedState extends HomeState {
         lunchIntakeList,
         dinnerIntakeList,
         snackIntakeList,
-        usesImperialUnits
+        usesImperialUnits,
+        baseTDEE,
+        tdeeWithExercise,
+        netKcalRemaining,
+        shouldShowWeightCheckin,
+        lastWeightEntry,
+        weightTrend,
+        checkinFrequency,
+        nextCheckinDate,
       ];
 }
