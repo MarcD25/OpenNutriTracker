@@ -12,7 +12,7 @@ workflows:
         script: flutter pub get
 
       - name: Generate files (build_runner)
-        script: flutter pub run build_runner build --delete-conflicting-outputs
+        script: flutter pub run build_runner build --delete-conflicting-outputs --build-filter="lib/**"
 
       - name: Build iOS IPA (debug)
         script: |
