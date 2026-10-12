@@ -28,6 +28,9 @@ void main() {
         totalCarbsGoal: 250,
         totalFatsGoal: 60,
         totalProteinsGoal: 120,
+        baseTDEE: 2000,
+        tdeeWithExercise: 2500,
+        netKcalRemaining: 1000,
       ),
     ));
     await tester.pumpAndSettle();
