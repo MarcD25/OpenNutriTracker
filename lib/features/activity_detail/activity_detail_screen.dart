@@ -78,11 +78,19 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           }
         },
       ),
-      bottomSheet: ActivityDetailBottomSheet(
-        onAddButtonPressed: onAddButtonPressed,
-        quantityTextController: quantityTextController,
-        activityEntity: activityEntity,
-        activityDetailBloc: _activityDetailBloc,
+      bottomSheet: BlocBuilder<ActivityDetailBloc, ActivityDetailState>(
+        bloc: _activityDetailBloc,
+        builder: (context, state) {
+          return state is ActivityDetailLoadedState 
+            ? ActivityDetailBottomSheet(
+                onAddButtonPressed: onAddButtonPressed,
+                quantityTextController: quantityTextController,
+                activityEntity: activityEntity,
+                activityDetailBloc: _activityDetailBloc,
+                userEntity: state.userEntity,
+              )
+            : const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -188,9 +196,14 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         duration: const Duration(seconds: 1), curve: Curves.easeInOut);
   }
 
-  void onAddButtonPressed(BuildContext context) {
-    _activityDetailBloc.persistActivity(
-        context, quantityTextController.text, totalKcal, activityEntity, _day);
+  void onAddButtonPressed(BuildContext context, double calories, bool isManualEntry) {
+    if (isManualEntry) {
+      _activityDetailBloc.persistActivityWithManualCalories(
+          context, quantityTextController.text, calories, activityEntity, _day);
+    } else {
+      _activityDetailBloc.persistActivity(
+          context, quantityTextController.text, calories, activityEntity, _day);
+    }
 
     // Refresh Home Page
     locator<HomeBloc>().add(const LoadItemsEvent());

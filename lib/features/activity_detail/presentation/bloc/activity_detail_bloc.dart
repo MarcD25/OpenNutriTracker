@@ -64,6 +64,21 @@ class ActivityDetailBloc
     _updateTrackedDay(day, totalKcalBurned);
   }
 
+  void persistActivityWithManualCalories(
+      BuildContext context,
+      String durationText,
+      double manualCalories,
+      PhysicalActivityEntity activityEntity,
+      DateTime day) async {
+    final duration = double.parse(durationText);
+
+    final userActivityEntity = UserActivityEntity(IdGenerator.getUniqueID(),
+        duration, manualCalories, day, activityEntity);
+
+    await _addUserActivityUsecase.addUserActivity(userActivityEntity);
+    _updateTrackedDay(day, manualCalories);
+  }
+
   void _updateTrackedDay(DateTime day, double caloriesBurned) async {
     final hasTrackedDay = await _addTrackedDayUsecase.hasTrackedDay(day);
     if (!hasTrackedDay) {

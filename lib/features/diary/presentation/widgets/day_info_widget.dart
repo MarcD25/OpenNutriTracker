@@ -4,9 +4,15 @@ import 'package:opennutritracker/core/domain/entity/intake_entity.dart';
 import 'package:opennutritracker/core/domain/entity/tracked_day_entity.dart';
 import 'package:opennutritracker/core/domain/entity/user_activity_entity.dart';
 import 'package:opennutritracker/core/presentation/widgets/activity_vertial_list.dart';
+import 'package:opennutritracker/core/presentation/widgets/edit_dialog.dart';
+import 'package:opennutritracker/core/utils/locator.dart';
+import 'package:opennutritracker/features/home/presentation/bloc/home_bloc.dart';
+import 'package:opennutritracker/core/utils/navigation_options.dart';
+import 'package:opennutritracker/features/edit_meal/presentation/edit_meal_screen.dart';
 import 'package:opennutritracker/core/presentation/widgets/copy_or_delete_dialog.dart';
 import 'package:opennutritracker/core/presentation/widgets/copy_dialog.dart';
 import 'package:opennutritracker/core/presentation/widgets/delete_dialog.dart';
+import 'package:opennutritracker/features/diary/presentation/widgets/food_entry_actions.dart';
 import 'package:opennutritracker/core/utils/custom_icons.dart';
 import 'package:opennutritracker/features/add_meal/presentation/add_meal_type.dart';
 import 'package:opennutritracker/features/home/presentation/widgets/intake_vertical_list.dart';
@@ -78,26 +84,7 @@ class DayInfoWidget extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Card(
-                          elevation: 0.0,
-                          margin: const EdgeInsets.all(0.0),
-                          color: trackedDayEntity
-                              ?.getRatingDayTextBackgroundColor(context),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0, vertical: 8.0),
-                            child: Text(
-                              _getCaloriesTrackedDisplayString(trackedDay),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                      color: trackedDayEntity
-                                          ?.getRatingDayTextColor(context),
-                                      fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
+                        _buildCalorieCard(context, trackedDay),
                         const SizedBox(height: 4.0),
                         Text(_getMacroTrackedDisplayString(trackedDay),
                             maxLines: 2,
@@ -127,10 +114,19 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: breakfastIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
+              onCopyIntakeCallback: onCopyIntake,
               usesImperialUnits: usesImperialUnits,
               trackedDayEntity: trackedDay,
             ),
@@ -142,11 +138,20 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: lunchIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
               usesImperialUnits: usesImperialUnits,
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onCopyIntakeCallback: onCopyIntake,
               trackedDayEntity: trackedDay,
             ),
             IntakeVerticalList(
@@ -157,10 +162,19 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: dinnerIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
+              onCopyIntakeCallback: onCopyIntake,
               usesImperialUnits: usesImperialUnits,
             ),
             IntakeVerticalList(
@@ -171,11 +185,20 @@ class DayInfoWidget extends StatelessWidget {
               intakeList: snackIntake,
               onDeleteIntakeCallback: onDeleteIntake,
               onItemLongPressedCallback: onIntakeItemLongPressed,
+              onItemTappedCallback: (ctx, intake, usesImp) async {
+                final changeAmount = await showDialog<double>(
+                    context: ctx,
+                    builder: (ctx) => EditDialog(
+                        intakeEntity: intake,
+                        usesImperialUnits: usesImperialUnits));
+                if (changeAmount != null) {
+                  locator<HomeBloc>()
+                      .updateIntakeItem(intake.id, {'amount': changeAmount});
+                  locator<HomeBloc>().add(const LoadItemsEvent());
+                }
+              },
               usesImperialUnits: usesImperialUnits,
-              onCopyIntakeCallback:
-                  DateUtils.isSameDay(selectedDay, DateTime.now())
-                      ? null
-                      : onCopyIntake,
+              onCopyIntakeCallback: onCopyIntake,
               trackedDayEntity: trackedDay,
             ),
             const SizedBox(height: 16.0)
@@ -185,21 +208,71 @@ class DayInfoWidget extends StatelessWidget {
     );
   }
 
-  String _getCaloriesTrackedDisplayString(TrackedDayEntity trackedDay) {
-    int caloriesTracked;
-    if (trackedDay.caloriesTracked.isNegative) {
-      caloriesTracked = 0;
-    } else {
-      caloriesTracked = trackedDay.caloriesTracked.toInt();
+  Widget _buildCalorieCard(BuildContext context, TrackedDayEntity trackedDay) {
+    // Calculate calories dynamically from actual food entries
+    final allIntakes = [...breakfastIntake, ...lunchIntake, ...dinnerIntake, ...snackIntake];
+    final calculatedCalories = TrackedDayEntity.calculateCaloriesFromIntakes(allIntakes);
+    
+    // Hide the card if there are 0 calories
+    if (calculatedCalories <= 0) {
+      return const SizedBox();
     }
+    
+    // Determine colors based on dynamic calorie calculation
+    final calculatedCaloriesForColor = TrackedDayEntity.calculateCaloriesFromIntakes(allIntakes);
+    final difference = trackedDay.calorieGoal - calculatedCaloriesForColor;
+    final isGoodEating = (trackedDay.calorieGoal < calculatedCaloriesForColor) 
+        ? difference.abs() < TrackedDayEntity.maxKcalDifferenceOverGoal
+        : difference < TrackedDayEntity.maxKcalDifferenceUnderGoal;
+    
+    final backgroundColor = isGoodEating 
+        ? Theme.of(context).colorScheme.secondaryContainer
+        : Theme.of(context).colorScheme.errorContainer;
+    final textColor = isGoodEating 
+        ? Theme.of(context).colorScheme.onSecondaryContainer
+        : Theme.of(context).colorScheme.onErrorContainer;
+    
+    return Card(
+      elevation: 0.0,
+      margin: const EdgeInsets.all(0.0),
+      color: backgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+        child: Text(
+          _getCaloriesTrackedDisplayString(trackedDay),
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
 
-    return '$caloriesTracked/${trackedDay.calorieGoal.toInt()} kcal';
+  String _getCaloriesTrackedDisplayString(TrackedDayEntity trackedDay) {
+    // Calculate calories dynamically from actual food entries
+    final allIntakes = [...breakfastIntake, ...lunchIntake, ...dinnerIntake, ...snackIntake];
+    final calculatedCalories = TrackedDayEntity.calculateCaloriesFromIntakes(allIntakes);
+    
+    final caloriesTracked = calculatedCalories.toInt();
+    final calorieGoal = trackedDay.calorieGoal.toInt();
+
+    return '$caloriesTracked/$calorieGoal kcal';
   }
 
   String _getMacroTrackedDisplayString(TrackedDayEntity trackedDay) {
-    final carbsTracked = trackedDay.carbsTracked?.floor().toString() ?? '?';
-    final fatTracked = trackedDay.fatTracked?.floor().toString() ?? '?';
-    final proteinTracked = trackedDay.proteinTracked?.floor().toString() ?? '?';
+    // Calculate macros dynamically from actual food entries
+    final allIntakes = [...breakfastIntake, ...lunchIntake, ...dinnerIntake, ...snackIntake];
+    
+    final calculatedCarbs = TrackedDayEntity.calculateCarbsFromIntakes(allIntakes);
+    final calculatedFat = TrackedDayEntity.calculateFatFromIntakes(allIntakes);
+    final calculatedProtein = TrackedDayEntity.calculateProteinFromIntakes(allIntakes);
+
+    final carbsTracked = calculatedCarbs.floor().toString();
+    final fatTracked = calculatedFat.floor().toString();
+    final proteinTracked = calculatedProtein.floor().toString();
 
     final carbsGoal = trackedDay.carbsGoal?.floor().toString() ?? '?';
     final fatGoal = trackedDay.fatGoal?.floor().toString() ?? '?';
@@ -210,12 +283,22 @@ class DayInfoWidget extends StatelessWidget {
 
   void showCopyOrDeleteIntakeDialog(
       BuildContext context, IntakeEntity intakeEntity) async {
-    final copyOrDelete = await showDialog<bool>(
+    final copyOrDelete = await showDialog<bool?>(
         context: context, builder: (context) => const CopyOrDeleteDialog());
     if (context.mounted) {
-      if (copyOrDelete != null && !copyOrDelete) {
+      if (copyOrDelete == null) {
+        // Edit details
+        // Navigate to full edit meal screen prefilled with this intake's meal
+        Navigator.of(context).pushNamed(NavigationOptions.editMealRoute,
+            arguments: EditMealScreenArguments(
+              selectedDay,
+              intakeEntity.meal,
+              intakeEntity.type,
+              usesImperialUnits,
+            ));
+      } else if (copyOrDelete == false) {
         showDeleteIntakeDialog(context, intakeEntity);
-      } else if (copyOrDelete != null && copyOrDelete) {
+      } else if (copyOrDelete == true) {
         showCopyDialog(context, intakeEntity);
       }
     }
@@ -241,11 +324,16 @@ class DayInfoWidget extends StatelessWidget {
 
   void onIntakeItemLongPressed(
       BuildContext context, IntakeEntity intakeEntity) async {
-    if (DateUtils.isSameDay(selectedDay, DateTime.now())) {
-      showDeleteIntakeDialog(context, intakeEntity);
-    } else {
-      showCopyOrDeleteIntakeDialog(context, intakeEntity);
-    }
+    // Use unified action sheet for all food entries regardless of date
+    FoodEntryActions.showActionSheet(
+      context,
+      intakeEntity,
+      selectedDay,
+      usesImperialUnits: usesImperialUnits,
+      onDeleteIntake: onDeleteIntake,
+      onCopyIntake: onCopyIntake,
+      trackedDayEntity: trackedDayEntity,
+    );
   }
 
   void onActivityItemLongPressed(

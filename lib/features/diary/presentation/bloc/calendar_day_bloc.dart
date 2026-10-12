@@ -76,12 +76,8 @@ class CalendarDayBloc extends Bloc<CalendarDayEvent, CalendarDayState> {
   Future<void> deleteIntakeItem(
       BuildContext context, IntakeEntity intakeEntity, DateTime day) async {
     await _deleteIntakeUsecase.deleteIntake(intakeEntity);
-    await _addTrackedDayUsecase.removeDayCaloriesTracked(
-        day, intakeEntity.totalKcal);
-    await _addTrackedDayUsecase.removeDayMacrosTracked(day,
-        carbsTracked: intakeEntity.totalCarbsGram,
-        fatTracked: intakeEntity.totalFatsGram,
-        proteinTracked: intakeEntity.totalProteinsGram);
+    // Note: Calories and macros are now calculated dynamically from food entries
+    // No need to update tracked day calories/macros since they're calculated on-demand
   }
 
   Future<void> deleteUserActivityItem(BuildContext context,
